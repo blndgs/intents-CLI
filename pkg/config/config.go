@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -9,7 +9,7 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
-func readConf() (string, *signer.EOA) {
+func ReadConf() (string, *signer.EOA) {
 	const nodeUrl = "ETH_NODE_URL"
 	const signerPrvKey = "SIGNER_PRIVATE_KEY"
 

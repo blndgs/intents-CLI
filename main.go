@@ -1,6 +1,7 @@
 package main
 
-func main() {
-	readConf()
+import "github.com/blndgs/intents-sdk/pkg/config"
 
+func main() {
+	config.ReadConf()
 }
