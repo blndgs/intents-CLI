@@ -9,9 +9,10 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
-func ReadConf() (string, *signer.EOA) {
+func ReadConf() (string, string, *signer.EOA) {
 	const nodeUrl = "ETH_NODE_URL"
 	const signerPrvKey = "SIGNER_PRIVATE_KEY"
+	const bundlerUrl = "BUNDLER_URL"
 
 	viper.SetConfigName(".env")
 	viper.SetConfigType("env")
@@ -26,9 +27,9 @@ func ReadConf() (string, *signer.EOA) {
 	if err != nil {
 		panic(fmt.Errorf("fatal signer error: %w", err))
 	}
-
+	bundlerURL := viper.GetString(bundlerUrl)
 	fmt.Printf("Signer private key: %s\n", hexutil.Encode(crypto.FromECDSA(s.PrivateKey)))
 	fmt.Printf("Public key: %s\n", hexutil.Encode(crypto.FromECDSAPub(s.PublicKey))[4:])
 	fmt.Printf("Address: %s\n", s.Address)
-	return nodeURL, s
+	return nodeURL, bundlerURL, s
 }
