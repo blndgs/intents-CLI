@@ -25,15 +25,16 @@ var SendUserOpCmd = &cobra.Command{
 	Use:   "send",
 	Short: "Send a userOp with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Read the userOp JSON
-		json, _ := cmd.Flags().GetString("send")
-		fmt.Println("Sending userOp:", json)
-
 		// Read configuration and initialize necessary components.
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
+		fmt.Println("send and sign userOp:", userOp)
+
 		zeroGas := utils.IsZeroGas(cmd)
+		fmt.Println("is zero gas enabled: ", zeroGas)
+
 		sender := userOp.Sender
+		fmt.Println("sender address: ", sender)
 
 		// Initialize Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)

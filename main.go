@@ -5,13 +5,10 @@ import (
 	"os"
 
 	"github.com/blndgs/intents-sdk/cmd"
-	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/spf13/cobra"
 )
 
 func main() {
-	config.ReadConf()
-
 	// Create a new root command
 	rootCmd := &cobra.Command{
 		Use:   "intents-sdk",
