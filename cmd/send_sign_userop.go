@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
@@ -16,46 +15,51 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
-var sendAndSignUserOpCmd = &cobra.Command{
+// init initializes the sendAndSignUserOp command and adds it to the root command.
+func init() {
+	utils.AddCommonFlags(SendAndSignUserOpCmd)
+}
+
+// SendAndSignUserOpCmd represents the command to sign and send user operations.
+var SendAndSignUserOpCmd = &cobra.Command{
 	Use:   "sign-send",
 	Short: "Sign and send a userOp with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read the userOp JSON
 		json, _ := cmd.Flags().GetString("sign")
 		fmt.Println("Signing userOp:", json)
-		nodeUrl, bundlerUrl, eoaSigner := config.ReadConf()
-		sender, entrypointAddr, zeroGas := utils.ReadFlags(cmd)
+
+		// Read configuration and initialize necessary components.
+		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
+		userOp := utils.GetUserOps(cmd)
+		zeroGas := utils.IsZeroGas(cmd)
+		sender := userOp.Sender
+
+		// Initialize Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)
 
 		nonce, err := ethClient.GetNonce(sender)
 		if err != nil {
 			panic(err)
 		}
-		unsignedUserOp := getMockUserOp(sender, nonce, zeroGas)
+		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
 
 		chainID, err := ethClient.GetChainID(sender)
 		if err != nil {
 			panic(err)
 		}
+		// Sign and send the user operation.
 		signAndSendUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
 	},
 }
 
-// signAndSendUserOp signs and send user ops.
+// signAndSendUserOp signs a user operation and then sends it.
 func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
-	// sign user ops
+	// Sign user operation.
 	signedUserOps, err := userop.Sign(chainID, entryPointAddr, signer, userOp)
 	if err != nil {
 		panic(err)
 	}
-	// send user ops
+	// Send user operation.
 	httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
-}
-
-func init() {
-	utils.AddCommonFlags(sendAndSignUserOpCmd)
-	sendAndSignUserOpCmd.Flags().StringP("sign-send", "c", "", "JSON userOp to be signed and sent")
-	if err := sendAndSignUserOpCmd.MarkFlagRequired("sign-send"); err != nil {
-		log.Fatal("missing flag: ", err)
-	}
 }

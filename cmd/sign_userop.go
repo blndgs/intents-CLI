@@ -2,7 +2,6 @@ package cmd
 
 import (
 	"fmt"
-	"log"
 	"math/big"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
@@ -15,41 +14,46 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
-var signUserOpCmd = &cobra.Command{
+// init initializes the signUserOp command and adds it to the root command.
+func init() {
+	utils.AddCommonFlags(SignUserOpCmd)
+}
+
+// SignUserOpCmd represents the command to sign user operations.
+var SignUserOpCmd = &cobra.Command{
 	Use:   "sign",
 	Short: "Sign a userOp with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read the userOp JSON
 		json, _ := cmd.Flags().GetString("sign")
 		fmt.Println("Signing userOp:", json)
-		nodeUrl, bundlerUrl, eoaSigner := config.ReadConf()
-		sender, entrypointAddr, zeroGas := utils.ReadFlags(cmd)
 
+		// Read configuration and initialize necessary components.
+		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
+		userOp := utils.GetUserOps(cmd)
+		zeroGas := utils.IsZeroGas(cmd)
+		sender := userOp.Sender
+
+		// Initialize Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)
 		nonce, err := ethClient.GetNonce(sender)
 		if err != nil {
 			panic(err)
 		}
-		unsignedUserOp := getMockUserOp(sender, nonce, zeroGas)
+		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
 
 		chainID, err := ethClient.GetChainID(sender)
 		if err != nil {
 			panic(err)
 		}
 
+		// Sign the user operation and prepare it for sending.
 		signUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
 	},
 }
 
-// signAndSendUserOp signs and send user ops.
+// signUserOp signs a user operation using the provided parameters and
+// prepares it for sending. It utilizes the userop package for signing.
 func signUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
 	userop.Sign(chainID, entryPointAddr, signer, signedUserOp)
-}
-
-func init() {
-	utils.AddCommonFlags(signUserOpCmd)
-	signUserOpCmd.Flags().StringP("sign", "c", "", "JSON userOp to be signed")
-	if err := signUserOpCmd.MarkFlagRequired("sign"); err != nil {
-		log.Fatal("missing flag: ", err)
-	}
 }
