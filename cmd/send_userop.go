@@ -28,7 +28,7 @@ var SendUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		fmt.Println("send and sign userOp:", userOp)
+		fmt.Println("send userOp:", userOp)
 
 		zeroGas := utils.IsZeroGas(cmd)
 		fmt.Println("is zero gas enabled: ", zeroGas)
@@ -59,5 +59,10 @@ func sendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr com
 		panic("Signature is invalid")
 	}
 	// send user ops
-	httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOp)
+	resp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOp)
+
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("send user Ops response: ", resp)
 }

@@ -46,7 +46,7 @@ intents-sdk [command] --userop ./sample.json
 ### Available Flags
 
 - `--userop`: User operation JSON as string or path to a JSON file.
-- `zerogas`: Use zero gas mode, default is `false`.
+- `--zerogas`: Use zero gas mode, default is `false`.
 
 ### Cleaning Up
 

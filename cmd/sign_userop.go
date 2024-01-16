@@ -27,7 +27,7 @@ var SignUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		fmt.Println("send and sign userOp:", userOp)
+		fmt.Println("sign userOp:", userOp)
 
 		zeroGas := utils.IsZeroGas(cmd)
 		fmt.Println("is zero gas enabled: ", zeroGas)
@@ -56,5 +56,9 @@ var SignUserOpCmd = &cobra.Command{
 // signUserOp signs a user operation using the provided parameters and
 // prepares it for sending. It utilizes the userop package for signing.
 func signUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
-	userop.Sign(chainID, entryPointAddr, signer, signedUserOp)
+	signedOps, err := userop.Sign(chainID, entryPointAddr, signer, signedUserOp)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("signed UserOps:", signedOps)
 }

@@ -61,5 +61,9 @@ func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointA
 		panic(err)
 	}
 	// Send user operation.
-	httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
+	resp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Println("sign and send userOps resp: ", resp)
 }
