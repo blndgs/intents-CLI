@@ -14,8 +14,8 @@ import (
 // It adds a string flag 'userop' for user operation JSON and
 // a boolean flag 'zerogas' to enable zero gas mode.
 func AddCommonFlags(cmd *cobra.Command) {
-	cmd.Flags().String("userop", "", "User operation JSON")
-	cmd.Flags().Bool("zerogas", false, "Use zero gas mode")
+	cmd.Flags().String("u", "", "User operation JSON")
+	cmd.Flags().Bool("z", true, "Use zero gas mode")
 
 	// Mark the 'userop' flag as required
 	if err := cmd.MarkFlagRequired("userop"); err != nil {
@@ -26,7 +26,7 @@ func AddCommonFlags(cmd *cobra.Command) {
 // IsZeroGas checks if the 'zerogas' flag is set in the command.
 // It returns true if the 'zerogas' flag is set, otherwise false.
 func IsZeroGas(cmd *cobra.Command) bool {
-	zeroGas, _ := cmd.Flags().GetBool("zerogas")
+	zeroGas, _ := cmd.Flags().GetBool("z")
 	return zeroGas
 }
 
@@ -34,7 +34,7 @@ func IsZeroGas(cmd *cobra.Command) bool {
 // and returns a UserOperation object. It panics if the JSON string is empty,
 // the file can't be read, or the JSON can't be parsed.
 func GetUserOps(cmd *cobra.Command) *model.UserOperation {
-	userOpInput, _ := cmd.Flags().GetString("userop")
+	userOpInput, _ := cmd.Flags().GetString("u")
 
 	var userOpJSON string
 	if fileExists(userOpInput) {
@@ -65,10 +65,11 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 // If zeroGas is true, all gas-related fields in the user operation are set to zero.
 // The function returns the updated UserOperation object.
 func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int, zeroGas bool) *model.UserOperation {
+	maxGasLimit := big.NewInt(300000) // Hardcoded max limit of 300k
 	if zeroGas {
-		userOp.CallGasLimit = big.NewInt(0)
-		userOp.VerificationGasLimit = big.NewInt(0)
-		userOp.PreVerificationGas = big.NewInt(0)
+		userOp.CallGasLimit = maxGasLimit
+		userOp.VerificationGasLimit = maxGasLimit
+		userOp.PreVerificationGas = maxGasLimit
 		userOp.MaxFeePerGas = big.NewInt(0)
 		userOp.MaxPriorityFeePerGas = big.NewInt(0)
 	}
