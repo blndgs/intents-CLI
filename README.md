@@ -26,7 +26,7 @@ Checkout `.env.example` for the reference.
 To run the application with a JSON input string, use:
 
 ```sh
-intents-sdk --userop 'USER_OP_JSON'
+intents-sdk --u 'USER_OP_JSON'
 ```
 
 #### Using JSON File
@@ -34,7 +34,7 @@ intents-sdk --userop 'USER_OP_JSON'
 Alternatively, you can use a JSON file as input:
 
 ```sh
-intents-sdk [command] --userop ./sample.json
+intents-sdk [command] --u ./sample.json
 ```
 
 ### Available Commands
@@ -45,8 +45,8 @@ intents-sdk [command] --userop ./sample.json
 
 ### Available Flags
 
-- `--userop`: User operation JSON as string or path to a JSON file.
-- `--zerogas`: Use zero gas mode, default is `false`.
+- `--u`: User operation JSON as string or path to a JSON file.
+- `--z`: Use zero gas mode, default is `false`.
 
 ### Cleaning Up
 

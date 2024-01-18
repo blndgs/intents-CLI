@@ -27,29 +27,35 @@ var SignUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		fmt.Println("sign userOp:", userOp)
+
+		fmt.Println("sign userOp:", userOp.String())
 
 		zeroGas := utils.IsZeroGas(cmd)
+
 		fmt.Println("is zero gas enabled: ", zeroGas)
 
 		sender := userOp.Sender
+
 		fmt.Println("sender address: ", sender)
 
 		// Initialize Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)
 		nonce, err := ethClient.GetNonce(sender)
+
+		fmt.Println("nonce: ", nonce)
 		if err != nil {
 			panic(err)
 		}
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
-
+		fmt.Println("unsignedUserOp: ", unsignedUserOp.String())
 		chainID, err := ethClient.GetChainID(sender)
+		fmt.Println("chainID: ", chainID)
 		if err != nil {
 			panic(err)
 		}
 
 		// Sign the user operation and prepare it for sending.
-		signUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
+		signUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, userOp)
 	},
 }
 

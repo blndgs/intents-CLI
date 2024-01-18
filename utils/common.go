@@ -18,7 +18,7 @@ func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().Bool("z", true, "Use zero gas mode")
 
 	// Mark the 'userop' flag as required
-	if err := cmd.MarkFlagRequired("userop"); err != nil {
+	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
 	}
 }
