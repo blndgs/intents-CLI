@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/big"
 
@@ -66,5 +67,12 @@ func signUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr com
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("signed UserOps:", signedOps)
+	// Marshal signedOps into JSON
+	jsonBytes, err := json.Marshal(signedOps)
+	if err != nil {
+		panic(fmt.Errorf("error marshaling signed operations to JSON: %v", err))
+	}
+
+	// Print JSON string
+	fmt.Println("signed UserOps in JSON:", string(jsonBytes))
 }

@@ -37,20 +37,23 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 	userOpInput, _ := cmd.Flags().GetString("u")
 
 	var userOpJSON string
-	if fileExists(userOpInput) {
-		// Read JSON from file
+	if userOpInput == "" {
+		panic("user operation JSON is required")
+	}
+
+	// Check if the input is JSON string or file path
+	if userOpInput[0] == '{' {
+		// Input is JSON string
+		userOpJSON = userOpInput
+	} else if fileExists(userOpInput) {
+		// Input is a file path
 		fileContent, err := os.ReadFile(userOpInput)
 		if err != nil {
 			panic(fmt.Errorf("error reading user operation file: %v", err))
 		}
 		userOpJSON = string(fileContent)
 	} else {
-		// Use input as JSON string
-		userOpJSON = userOpInput
-	}
-
-	if userOpJSON == "" {
-		panic("user operation JSON is required")
+		panic("invalid user operation input")
 	}
 
 	var userOp model.UserOperation

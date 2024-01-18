@@ -15,7 +15,10 @@ import (
 
 // Sign signs the UserOperation with the given private key.
 func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) (*model.UserOperation, error) {
-	signature := getSignature(chainID, signer.PrivateKey, entryPointAddr, userOp)
+	signature, err := getSignature(chainID, signer.PrivateKey, entryPointAddr, userOp)
+	if err != nil {
+		return &model.UserOperation{}, err
+	}
 	// Verify the signature
 	userOp.Signature = signature
 	if !VerifySignature(chainID, signer.PublicKey, entryPointAddr, userOp) {
@@ -25,7 +28,7 @@ func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, u
 }
 
 // getSignature gets the signature.
-func getSignature(chainID *big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr common.Address, userOp *model.UserOperation) []byte {
+func getSignature(chainID *big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr common.Address, userOp *model.UserOperation) ([]byte, error) {
 	userOpHashObj := userOp.GetUserOpHash(entryPointAddr, chainID)
 	println("userOpHash:", userOpHashObj.String())
 	userOpHash := userOpHashObj.Bytes()
@@ -36,7 +39,7 @@ func getSignature(chainID *big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr
 
 	signature, err := crypto.Sign(prefixedHash.Bytes(), privateKey)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	signature[64] += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
 	// Normalize S value for Ethereum
@@ -46,7 +49,7 @@ func getSignature(chainID *big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr
 	// 	sValue.Sub(secp256k1N, sValue)
 	// 	copy(signature[32:64], sValue.Bytes())
 	// }
-	return signature
+	return signature, nil
 }
 
 // VerifySignature verifies the signature of the UserOperation.
