@@ -65,17 +65,17 @@ func VerifySignature(chainID *big.Int, publicKey *ecdsa.PublicKey, entryPointAdd
 	userOpHash := userOp.GetUserOpHash(entryPointAddr, chainID).Bytes()
 
 	prefixedHash := crypto.Keccak256Hash(
-		[]byte(fmt.Sprintf("\x19ethereum signed message:\n%d%s", len(userOpHash), userOpHash)),
+		[]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(userOpHash), userOpHash)),
 	)
 
 	recoveredPubKey, err := crypto.SigToPub(prefixedHash.Bytes(), signature)
 	if err != nil {
-		panic(err)
+		fmt.Printf("Failed to recover public key: %v\n", err)
+		return false
 	}
 
 	recoveredAddress := crypto.PubkeyToAddress(*recoveredPubKey)
 	expectedAddress := crypto.PubkeyToAddress(*publicKey)
-	fmt.Println("recoveredAddress", recoveredAddress)
-	fmt.Println("expectedAddress", expectedAddress)
+
 	return recoveredAddress == expectedAddress
 }
