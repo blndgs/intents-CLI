@@ -58,6 +58,8 @@ var SignUserOpCmd = &cobra.Command{
 
 		// Sign the user operation and prepare it for sending.
 		signUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, userOp)
+		// Print signature
+		utils.PrintSignature(userOp)
 	},
 }
 
