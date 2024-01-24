@@ -19,12 +19,12 @@ type Client struct {
 }
 
 // NewClient creates a new Ethereum client.
-func NewClient(nodeUrl string) *Client {
-	client, err := ethclient.Dial(nodeUrl)
+func NewClient(nodeURL string) *Client {
+	client, err := ethclient.Dial(nodeURL)
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
-	return &Client{nodeURL: nodeUrl, ethClient: client}
+	return &Client{nodeURL: nodeURL, ethClient: client}
 }
 
 // GetNodeIDs returns the nonce.
