@@ -41,6 +41,7 @@ var SignUserOpCmd = &cobra.Command{
 
 		// Initialize Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)
+		// get nonce
 		nonce, err := ethClient.GetNonce(sender)
 
 		fmt.Println("nonce: ", nonce)
@@ -57,6 +58,8 @@ var SignUserOpCmd = &cobra.Command{
 
 		// Sign the user operation and prepare it for sending.
 		signUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, userOp)
+		// Print signature
+		utils.PrintSignature(userOp)
 	},
 }
 

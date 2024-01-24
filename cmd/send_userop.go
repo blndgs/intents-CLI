@@ -49,6 +49,8 @@ var SendUserOpCmd = &cobra.Command{
 			panic(err)
 		}
 		sendUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
+		// Print signature
+		utils.PrintSignature(userOp)
 	},
 }
 

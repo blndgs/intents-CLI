@@ -1,12 +1,14 @@
 package utils
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
 
 	"github.com/blndgs/model"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
 
@@ -84,4 +86,10 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int, zeroGas bool) *mo
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
+}
+
+// PrintSignature prints the signature + hex encoded intent JSON (calldata).
+func PrintSignature(userOp *model.UserOperation) {
+	fmt.Printf("\nSignature value after solution:\n%s\n",
+		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
 }
