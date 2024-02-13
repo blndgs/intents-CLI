@@ -30,8 +30,6 @@ var SignUserOpCmd = &cobra.Command{
 		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 
-		fmt.Println("sign userOp:", userOp.String())
-
 		zeroGas := utils.IsZeroGas(cmd)
 
 		fmt.Println("is zero gas enabled: ", zeroGas)
@@ -40,15 +38,15 @@ var SignUserOpCmd = &cobra.Command{
 
 		fmt.Println("sender address: ", sender)
 
-		// Initialize Ethereum client and retrieve nonce and chain ID.
+		// Initialize an Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)
 		// get nonce
 		nonce, err := ethClient.GetNonce(sender)
-
-		fmt.Println("nonce: ", nonce)
 		if err != nil {
 			panic(err)
 		}
+
+		fmt.Println("nonce: ", nonce)
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
 		fmt.Println("unsignedUserOp: ", unsignedUserOp.String())
 		chainID, err := ethClient.GetChainID(sender)
@@ -71,6 +69,9 @@ func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.
 	if err != nil {
 		panic(err)
 	}
+
+	fmt.Printf("signed userOp:\n%s\n", signedOps)
+
 	// Marshal signedOps into JSON
 	jsonBytes, err := json.Marshal(signedOps)
 	if err != nil {
