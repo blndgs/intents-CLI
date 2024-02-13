@@ -27,7 +27,7 @@ var SignUserOpCmd = &cobra.Command{
 	Short: "Sign a userOp with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
+		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 
 		fmt.Println("sign userOp:", userOp.String())
@@ -58,7 +58,7 @@ var SignUserOpCmd = &cobra.Command{
 		}
 
 		// Sign the user operation and prepare it for sending.
-		signUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, userOp)
+		signUserOp(chainID, entrypointAddr, eoaSigner, userOp)
 		// Print signature
 		utils.PrintSignature(userOp)
 	},
@@ -66,7 +66,7 @@ var SignUserOpCmd = &cobra.Command{
 
 // signUserOp signs a user operation using the provided parameters and
 // prepares it for sending. It utilizes the userop package for signing.
-func signUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
+func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
 	signedOps, err := userop.Sign(chainID, entryPointAddr, signer, signedUserOp)
 	if err != nil {
 		panic(err)
