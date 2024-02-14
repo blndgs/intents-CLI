@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/blndgs/model"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/spf13/cobra"
+	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
+
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/pkg/httpclient"
 	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/intents-sdk/utils"
-	"github.com/blndgs/model"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/spf13/cobra"
-	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
 // init initializes the sendAndSignUserOp command and adds it to the root command.
