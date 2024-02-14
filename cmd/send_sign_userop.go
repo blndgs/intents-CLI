@@ -29,22 +29,22 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		fmt.Println("send and sign userOp:", userOp)
-
 		zeroGas := utils.IsZeroGas(cmd)
 		fmt.Println("is zero gas enabled: ", zeroGas)
 
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)
-		// Initialize Ethereum client and retrieve nonce and chain ID.
+		// Initialize an Ethereum client and retrieve nonce and chain ID.
 		ethClient := ethclient.NewClient(nodeUrl)
 
 		nonce, err := ethClient.GetNonce(sender)
 		if err != nil {
 			panic(err)
 		}
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
 
+		fmt.Println("nonce: ", nonce)
+		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
+		fmt.Println("unsignedUserOp: ", unsignedUserOp.String())
 		chainID, err := ethClient.GetChainID(sender)
 		if err != nil {
 			panic(err)
@@ -63,7 +63,9 @@ func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointA
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("signedUserOps", signedUserOps)
+
+	fmt.Printf("signed userOp:\n%s\n", signedUserOps)
+
 	// Send user operation.
 	resp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
 	if err != nil {
