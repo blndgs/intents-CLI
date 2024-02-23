@@ -48,6 +48,10 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
+
+		fmt.Printf("\nchain-id:%s\n", chainID)
+		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
+
 		// Sign and send the user operation.
 		signAndSendUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
 		// Print signature
