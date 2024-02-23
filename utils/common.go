@@ -70,13 +70,22 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 // If zeroGas is true, all gas-related fields in the user operation are set to zero.
 // The function returns the updated UserOperation object.
 func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int, zeroGas bool) *model.UserOperation {
-	maxGasLimit := big.NewInt(300000) // Hardcoded max limit of 300k
+	zero := big.NewInt(0)
+
+	// set sane default values
+	if userOp.CallGasLimit.Cmp(zero) == 0 {
+		userOp.CallGasLimit = big.NewInt(500000)
+	}
+	if userOp.VerificationGasLimit.Cmp(zero) == 0 {
+		userOp.VerificationGasLimit = big.NewInt(65536)
+	}
+	if userOp.PreVerificationGas.Cmp(zero) == 0 {
+		userOp.PreVerificationGas = big.NewInt(65536)
+	}
+
 	if zeroGas {
-		userOp.CallGasLimit = maxGasLimit
-		userOp.VerificationGasLimit = maxGasLimit
-		userOp.PreVerificationGas = maxGasLimit
-		userOp.MaxFeePerGas = big.NewInt(0)
-		userOp.MaxPriorityFeePerGas = big.NewInt(0)
+		userOp.MaxFeePerGas = zero
+		userOp.MaxPriorityFeePerGas = zero
 	}
 	userOp.Nonce = nonce
 	return userOp
