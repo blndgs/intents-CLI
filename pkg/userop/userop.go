@@ -30,9 +30,8 @@ func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, u
 // getSignature gets the signature.
 func getSignature(chainID *big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr common.Address, userOp *model.UserOperation) ([]byte, error) {
 	userOpHashObj := userOp.GetUserOpHash(entryPointAddr, chainID)
-	println("userOpHash:", userOpHashObj.String())
-	userOpHash := userOpHashObj.Bytes()
 
+	userOpHash := userOpHashObj.Bytes()
 	prefixedHash := crypto.Keccak256Hash(
 		[]byte(fmt.Sprintf("\x19Ethereum Signed Message:\n%d%s", len(userOpHash), userOpHash)),
 	)
