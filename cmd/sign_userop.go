@@ -50,10 +50,12 @@ var SignUserOpCmd = &cobra.Command{
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
 		fmt.Println("unsignedUserOp: ", unsignedUserOp.String())
 		chainID, err := ethClient.GetChainID(sender)
-		fmt.Println("chainID: ", chainID)
 		if err != nil {
 			panic(err)
 		}
+
+		fmt.Printf("\nchain-id:%s\n", chainID)
+		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
 
 		// Sign the user operation and prepare it for sending.
 		signUserOp(chainID, entrypointAddr, eoaSigner, userOp)
