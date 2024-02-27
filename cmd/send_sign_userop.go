@@ -70,5 +70,6 @@ func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointA
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("sign and send userOps resp: ", resp)
+	userOpHash := string(resp)
+	fmt.Println("sign and send userOps resp: ", userOpHash)
 }
