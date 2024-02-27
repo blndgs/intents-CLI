@@ -46,7 +46,6 @@ intents-sdk [command] --u ./sample.json
 ### Available Flags
 
 - `--u`: User operation JSON as string or path to a JSON file.
-- `--z`: Use zero gas mode, default is `false`.
 
 ### Cleaning Up
 

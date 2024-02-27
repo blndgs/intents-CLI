@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/blndgs/model"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/spf13/cobra"
+	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
+
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/pkg/httpclient"
 	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/intents-sdk/utils"
-	"github.com/blndgs/model"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/spf13/cobra"
-	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
 // init initializes the sendAndSignUserOp command and adds it to the root command.
@@ -30,9 +31,6 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		userOp := utils.GetUserOps(cmd)
 		fmt.Println("send and sign userOp:", userOp)
 
-		zeroGas := utils.IsZeroGas(cmd)
-		fmt.Println("is zero gas enabled: ", zeroGas)
-
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)
 		// Initialize Ethereum client and retrieve nonce and chain ID.
@@ -42,7 +40,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
+		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
 		chainID, err := ethClient.GetChainID(sender)
 		if err != nil {
