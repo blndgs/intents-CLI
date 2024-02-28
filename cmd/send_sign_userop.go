@@ -51,14 +51,14 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
 
 		// Sign and send the user operation.
-		signAndSendUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
+		signAndSendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
 		// Print signature
 		utils.PrintSignature(userOp)
 	},
 }
 
 // signAndSendUserOp signs a user operation and then sends it.
-func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
+func signAndSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
 	// Sign user operation.
 	signedUserOps, err := userop.Sign(chainID, entryPointAddr, signer, userOp)
 	if err != nil {
@@ -72,4 +72,11 @@ func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointA
 	}
 	userOpHash := string(resp)
 	fmt.Println("sign and send userOps resp: ", userOpHash)
+
+	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, userOpHash)
+	if err != nil {
+		fmt.Println("Error getting UserOperation receipt:", err)
+		return
+	}
+	fmt.Println("UserOperation Receipt:", string(receipt))
 }

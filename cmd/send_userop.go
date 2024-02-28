@@ -66,4 +66,11 @@ func sendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Addre
 
 	userOpHash := string(resp)
 	fmt.Println("sign and send userOps resp: ", userOpHash)
+
+	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, userOpHash)
+	if err != nil {
+		fmt.Println("Error getting UserOperation receipt:", err)
+		return
+	}
+	fmt.Println("UserOperation Receipt:", string(receipt))
 }
