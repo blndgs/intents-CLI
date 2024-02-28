@@ -25,6 +25,16 @@ type JsonRpcResponse struct {
 	Id      int              `json:"id"`
 }
 
+type RPCErrDetail struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+	Data    any    `json:"data"`
+}
+
+func (r *RPCErrDetail) Error() string {
+	return r.Message
+}
+
 // SendJsonRpcRequest sends a generic JSON-RPC request to the given URL.
 func SendRPCRequest(url, method string, params []interface{}) (json.RawMessage, error) {
 	request := JsonRpcRequest{
@@ -51,6 +61,11 @@ func SendRPCRequest(url, method string, params []interface{}) (json.RawMessage, 
 	}
 
 	if response.Error != nil {
+		var rpcErr RPCErrDetail
+		jsonErr := json.Unmarshal(*response.Error, &rpcErr)
+		if jsonErr == nil {
+			return nil, &rpcErr
+		}
 		return nil, errors.New(fmt.Sprintf("RPC Error: %s", *response.Error))
 	}
 
@@ -66,5 +81,17 @@ func SendUserOp(bundlerURL string, entryPointAddr common.Address, userOp *model.
 // GetUserOperationReceipt retrieves the receipt of a UserOperation by its hash.
 func GetUserOperationReceipt(bundlerURL string, userOpHash string) (json.RawMessage, error) {
 	params := []interface{}{userOpHash}
-	return SendRPCRequest(bundlerURL, "eth_getUserOperationReceipt", params)
+	resp, err := SendRPCRequest(bundlerURL, "eth_getUserOperationReceipt", params)
+	if err != nil {
+		var rpcError RPCErrDetail
+		if errors.As(err, &rpcError) {
+			if rpcError.Code == -32601 {
+				println("Cannot query receipt, check that the Ethereum node supports `getLogs`")
+			}
+		}
+
+		return nil, err
+	}
+
+	return resp, nil
 }
