@@ -4,15 +4,16 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/blndgs/model"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/spf13/cobra"
+	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
+
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/pkg/httpclient"
 	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/intents-sdk/utils"
-	"github.com/blndgs/model"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/spf13/cobra"
-	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
 // init initializes the sendAndSignUserOp command and adds it to the root command.
@@ -30,9 +31,6 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		userOp := utils.GetUserOps(cmd)
 		fmt.Println("send and sign userOp:", userOp)
 
-		zeroGas := utils.IsZeroGas(cmd)
-		fmt.Println("is zero gas enabled: ", zeroGas)
-
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)
 		// Initialize Ethereum client and retrieve nonce and chain ID.
@@ -42,7 +40,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		if err != nil {
 			panic(err)
 		}
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
+		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
 		chainID, err := ethClient.GetChainID(sender)
 		if err != nil {
@@ -53,14 +51,14 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
 
 		// Sign and send the user operation.
-		signAndSendUserOp(chainID, bundlerUrl, sender, entrypointAddr, eoaSigner, unsignedUserOp)
+		signAndSendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
 		// Print signature
 		utils.PrintSignature(userOp)
 	},
 }
 
 // signAndSendUserOp signs a user operation and then sends it.
-func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
+func signAndSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
 	// Sign user operation.
 	signedUserOps, err := userop.Sign(chainID, entryPointAddr, signer, userOp)
 	if err != nil {
@@ -72,5 +70,13 @@ func signAndSendUserOp(chainID *big.Int, bundlerUrl string, address, entryPointA
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println("sign and send userOps resp: ", resp)
+	userOpHash := string(resp)
+	fmt.Println("sign and send userOps resp: ", userOpHash)
+
+	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, userOpHash)
+	if err != nil {
+		fmt.Println("Error getting UserOperation receipt:", err)
+		return
+	}
+	fmt.Println("UserOperation Receipt:", string(receipt))
 }

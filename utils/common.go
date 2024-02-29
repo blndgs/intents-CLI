@@ -14,22 +14,13 @@ import (
 
 // AddCommonFlags adds common flags to the provided Cobra command.
 // It adds a string flag 'userop' for user operation JSON and
-// a boolean flag 'zerogas' to enable zero gas mode.
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
-	cmd.Flags().Bool("z", true, "Use zero gas mode")
 
 	// Mark the 'userop' flag as required
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
 	}
-}
-
-// IsZeroGas checks if the 'zerogas' flag is set in the command.
-// It returns true if the 'zerogas' flag is set, otherwise false.
-func IsZeroGas(cmd *cobra.Command) bool {
-	zeroGas, _ := cmd.Flags().GetBool("z")
-	return zeroGas
 }
 
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
@@ -66,10 +57,9 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 	return &userOp
 }
 
-// UpdateUserOp updates the given user operation based on the provided nonce and zeroGas flag.
-// If zeroGas is true, all gas-related fields in the user operation are set to zero.
+// UpdateUserOp updates the given user operation based on the provided nonce flag.
 // The function returns the updated UserOperation object.
-func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int, zeroGas bool) *model.UserOperation {
+func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperation {
 	zero := big.NewInt(0)
 
 	// set sane default values
@@ -83,10 +73,6 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int, zeroGas bool) *mo
 		userOp.PreVerificationGas = big.NewInt(65536)
 	}
 
-	if zeroGas {
-		userOp.MaxFeePerGas = zero
-		userOp.MaxPriorityFeePerGas = zero
-	}
 	userOp.Nonce = nonce
 	return userOp
 }

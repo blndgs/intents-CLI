@@ -30,10 +30,6 @@ var SignUserOpCmd = &cobra.Command{
 		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 
-		zeroGas := utils.IsZeroGas(cmd)
-
-		fmt.Println("is zero gas enabled: ", zeroGas)
-
 		sender := userOp.Sender
 
 		fmt.Println("sender address: ", sender)
@@ -47,7 +43,7 @@ var SignUserOpCmd = &cobra.Command{
 		}
 
 		fmt.Println("nonce: ", nonce)
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce, zeroGas)
+		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 		fmt.Println("unsignedUserOp: ", unsignedUserOp.String())
 		chainID, err := ethClient.GetChainID(sender)
 		if err != nil {
