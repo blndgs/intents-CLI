@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 
 	"github.com/blndgs/intents-sdk/cmd"
@@ -15,6 +16,8 @@ func main() {
 		Short: "Intents SDK Command Line Interface",
 		Long:  `Intents SDK CLI provides tools for signing and sending user operations.`,
 	}
+
+	log.SetOutput(os.Stdout)
 
 	// Add commands to the root command
 	rootCmd.AddCommand(cmd.SendAndSignUserOpCmd)
