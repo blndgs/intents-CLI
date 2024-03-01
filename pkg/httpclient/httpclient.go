@@ -83,7 +83,7 @@ func GetUserOperationReceipt(bundlerURL string, userOpHash string) (json.RawMess
 	params := []interface{}{userOpHash}
 	resp, err := SendRPCRequest(bundlerURL, "eth_getUserOperationReceipt", params)
 	if err != nil {
-		var rpcError RPCErrDetail
+		rpcError := &RPCErrDetail{}
 		if errors.As(err, &rpcError) {
 			if rpcError.Code == -32601 {
 				println("Cannot query receipt, check that the Ethereum node supports `getLogs`")
