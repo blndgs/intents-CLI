@@ -1,0 +1,13 @@
+{
+  "sender": "0xa092801FC37902ffA1b93f12B61CE32609208E2B",
+  "nonce": "0xc",
+  "initCode": "0x",
+  "CallData": "{\"sender\":\"0xa092801FC37902ffA1b93f12B61CE32609208E2B\",\"from\":{\"type\":\"TOKEN\",\"address\":\"0x6B175474E89094C44Da98b954EedeAC495271d0F\",\"amount\":\"10\",\"chainId\":\"1\"},\"to\":{\"type\":\"LOAN\",\"address\":\"0x87870bca3f3fd6335c3f4ce8392d69350b4fa4e2\",\"chainId\":\"1\"}}",
+  "callGasLimit": "0xc3500",
+  "verificationGasLimit": "0xc3500",
+  "preVerificationGas": "0x493e0",
+  "maxFeePerGas": "0x493e0",
+  "maxPriorityFeePerGas": "0x493e0",
+  "paymasterAndData": "0x",
+  "signature": "0x48dc8a589df3a2b03df26f59ecc0bb54655c09be422aa6885fc62725813670e875059fc97d705e444a88c03bda98dbf09efe063536cad86c9073fc01e8f890fa1c"
+}
