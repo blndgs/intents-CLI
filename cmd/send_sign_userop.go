@@ -66,14 +66,13 @@ func signAndSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr commo
 	}
 	fmt.Println("signedUserOps", signedUserOps)
 	// Send user operation.
-	resp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
+	hashResp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
 	if err != nil {
 		panic(err)
 	}
-	userOpHash := string(resp)
-	fmt.Println("sign and send userOps resp: ", userOpHash)
+	fmt.Printf("sign and send userOps hashResp: %+v\n", hashResp)
 
-	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, userOpHash)
+	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, hashResp.Solved)
 	if err != nil {
 		fmt.Println("Error getting UserOperation receipt:", err)
 		return
