@@ -54,7 +54,7 @@ func (c *Client) GetNonce(address common.Address) (*big.Int, error) {
 // GetChainID returns the chain id.
 func (c *Client) GetChainID(address common.Address) (chainID *big.Int, err error) {
 	// Retrieve the chain ID
-	chainID, err = c.ethClient.ChainID(context.Background())
+	chainID, err = c.ethClient.NetworkID(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve the chain ID: %w", err)
 	}
