@@ -7,12 +7,13 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blndgs/intents-sdk/pkg/userop"
 )
 
 // TestSign test sign signature.
@@ -27,7 +28,7 @@ func TestSign(t *testing.T) {
 		wantErr        bool
 	}{
 		{
-			name:           "Successful Signing",
+			name:           "Successful Signing with conventional userOp",
 			chainID:        big.NewInt(1),
 			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
 			signer:         validPrivateKey(),
@@ -44,6 +45,26 @@ func TestSign(t *testing.T) {
                 "paymasterAndData": "0x",
                 "signature": "0x8e8a12900df61d02ad6907c15315564f55ae38323c82bb44e673a52c6230bc8455a85e6721575f8b139e0d191d24557d46c6670999552a0ad9d3167e25ad3f0b1b"
             }`,
+			wantErr: false,
+		},
+		{
+			name:           "Successful Signing with Proto Intent userOp",
+			chainID:        big.NewInt(1),
+			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
+			signer:         validPrivateKey(),
+			userOp: `{
+			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+			  "nonce":"0xf",
+			  "initCode":"0x",
+			  "callData":"{\"sender\":\"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4\",\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"DeC2s6dkAAA=\"},\"chainId\":{\"value\":\"AQ==\"}}}",
+			  "callGasLimit":"0xc3500",
+			  "verificationGasLimit":"0x996a0",
+			  "preVerificationGas":"0x99000",
+			  "maxFeePerGas":"0x0",
+			  "maxPriorityFeePerGas":"0x0",
+			  "paymasterAndData":"0x",
+			  "signature":"0x"
+			}`,
 			wantErr: false,
 		},
 		{
@@ -80,6 +101,9 @@ func TestSign(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+			}
+			if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
+				t.Errorf("signature is invalid for %s", tc.userOp)
 			}
 		})
 	}
