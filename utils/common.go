@@ -21,6 +21,9 @@ func AddCommonFlags(cmd *cobra.Command) {
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
 	}
+
+	// optional Kernel prefix flag
+	cmd.Flags().Uint("k", 0, "Kernel Signature Prefix (0, 1, or 2)")
 }
 
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
@@ -55,6 +58,34 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
 	}
 	return &userOp
+}
+
+func GetKernelPrefix(cmd *cobra.Command) string {
+	kernelPrefix, err := cmd.Flags().GetUint("k")
+	if err != nil {
+		panic(fmt.Errorf("error reading kernel prefix: %v", err))
+	}
+
+	// Check if the user provided the flag
+	flagProvided := cmd.Flags().Changed("k")
+	if flagProvided {
+		return getKernelPrefixString(kernelPrefix)
+	}
+
+	return ""
+}
+
+func getKernelPrefixString(kernelPrefix uint) string {
+	switch kernelPrefix {
+	case 0:
+		return "00000000"
+	case 1:
+		return "00000001"
+	case 2:
+		return "00000002"
+	default:
+		panic("invalid kernel prefix")
+	}
 }
 
 // UpdateUserOp updates the given user operation based on the provided nonce flag.
