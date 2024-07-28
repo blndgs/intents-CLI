@@ -3,6 +3,7 @@ module github.com/blndgs/intents-sdk
 go 1.21.5
 
 require (
+	github.com/blndgs/model v0.41.0
 	github.com/ethereum/go-ethereum v1.11.5
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
@@ -38,7 +39,6 @@ require (
 )
 
 require (
-	github.com/blndgs/model v0.22.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.3 // indirect
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.3.0 // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
