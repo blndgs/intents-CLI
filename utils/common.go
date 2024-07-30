@@ -121,6 +121,7 @@ func processCallDataUsingBigInt(jsonData string) (string, error) {
 	return string(encodedBytes), nil
 }
 
+// convertToBigInt recursively converts numeric strings within a map or slice to big.Int.
 func convertToBigInt(data interface{}) error {
 	switch val := data.(type) {
 	case map[string]interface{}:
@@ -148,11 +149,13 @@ func convertToBigInt(data interface{}) error {
 	return nil
 }
 
+// isNumericString checks if a given string represents a numeric value.
 func isNumericString(s string) bool {
 	_, err := strconv.Atoi(s)
 	return err == nil
 }
 
+// fileExists checks if a file exists at the given path.
 func fileExists(path string) bool {
 	_, err := os.Stat(path)
 	return !os.IsNotExist(err)
