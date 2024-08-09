@@ -33,7 +33,7 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 		panic("user operation JSON is required")
 	}
 	if userOpInput[0] == '{' {
-		callDataEncoded, err := processCallDataUsingBigInt(userOpInput)
+		callDataEncoded, err := ProcessCallDataUsingBigInt(userOpInput)
 		if err != nil {
 			panic(fmt.Errorf("error encoding callData: %v", err))
 		}
@@ -43,7 +43,7 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 		if err != nil {
 			panic(fmt.Errorf("error reading user operation file: %v", err))
 		}
-		callDataEncoded, err := processCallDataUsingBigInt(string(fileContent))
+		callDataEncoded, err := ProcessCallDataUsingBigInt(string(fileContent))
 		if err != nil {
 			panic(fmt.Errorf("error encoding callData: %v", err))
 		}
@@ -85,8 +85,8 @@ func PrintSignature(userOp *model.UserOperation) {
 		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
 }
 
-// processCallDataUsingBigInt convert the int to ProtoBigInt.
-func processCallDataUsingBigInt(jsonData string) (string, error) {
+// ProcessCallDataUsingBigInt convert the int to ProtoBigInt.
+func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(jsonData), &data)
 	if err != nil {
