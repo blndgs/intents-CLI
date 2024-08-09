@@ -101,9 +101,9 @@ func TestSign(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-			}
-			if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
-				t.Errorf("signature is invalid for %s", tc.userOp)
+				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
+					t.Errorf("signature is invalid for %s", tc.userOp)
+				}
 			}
 		})
 	}
