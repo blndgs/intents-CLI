@@ -102,6 +102,26 @@ func TestIntentUserOpSign(t *testing.T) {
 		wantErr        bool
 	}{
 		{
+			name:           "Successful Signing with Proto Intent userOp from sample.json",
+			chainID:        big.NewInt(1),
+			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
+			signer:         validPrivateKey(),
+			userOp: `{
+			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+			  "nonce":"0xf",
+			  "initCode":"0x",
+			  "callData":"{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}",
+			  "callGasLimit":"0xc3500",
+			  "verificationGasLimit":"0x996a0",
+			  "preVerificationGas":"0x99000",
+			  "maxFeePerGas":"0x0",
+			  "maxPriorityFeePerGas":"0x0",
+			  "paymasterAndData":"0x",
+			  "signature":"0x"
+			}`,
+			wantErr: false,
+		},
+		{
 			name:           "Successful Signing with Proto Intent userOp",
 			chainID:        big.NewInt(1),
 			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
