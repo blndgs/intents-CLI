@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"strconv"
 
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -13,11 +14,9 @@ import (
 )
 
 // AddCommonFlags adds common flags to the provided Cobra command.
-// It adds a string flag 'userop' for user operation JSON and
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
 
-	// Mark the 'userop' flag as required
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
 	}
@@ -33,18 +32,22 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 	if userOpInput == "" {
 		panic("user operation JSON is required")
 	}
-
-	// Check if the input is JSON string or file path
 	if userOpInput[0] == '{' {
-		// Input is JSON string
-		userOpJSON = userOpInput
+		callDataEncoded, err := ProcessCallDataUsingBigInt(userOpInput)
+		if err != nil {
+			panic(fmt.Errorf("error encoding callData: %v", err))
+		}
+		userOpJSON = callDataEncoded
 	} else if fileExists(userOpInput) {
-		// Input is a file path
 		fileContent, err := os.ReadFile(userOpInput)
 		if err != nil {
 			panic(fmt.Errorf("error reading user operation file: %v", err))
 		}
-		userOpJSON = string(fileContent)
+		callDataEncoded, err := ProcessCallDataUsingBigInt(string(fileContent))
+		if err != nil {
+			panic(fmt.Errorf("error encoding callData: %v", err))
+		}
+		userOpJSON = callDataEncoded
 	} else {
 		panic("invalid user operation input")
 	}
@@ -62,7 +65,6 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperation {
 	zero := big.NewInt(0)
 
-	// set sane default values
 	if userOp.CallGasLimit.Cmp(zero) == 0 {
 		userOp.CallGasLimit = big.NewInt(500000)
 	}
@@ -77,14 +79,84 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperat
 	return userOp
 }
 
-// fileExists checks if a file exists at the given path.
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
-}
-
 // PrintSignature prints the signature + hex encoded intent JSON (calldata).
 func PrintSignature(userOp *model.UserOperation) {
 	fmt.Printf("\nSignature value after solution:\n%s\n",
 		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
+}
+
+// ProcessCallDataUsingBigInt convert the int to ProtoBigInt.
+func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(jsonData), &data)
+	if err != nil {
+		return "", err
+	}
+
+	if callData, ok := data["callData"].(string); ok {
+		var callDataMap map[string]interface{}
+		err := json.Unmarshal([]byte(callData), &callDataMap)
+		if err != nil {
+			return "", err
+		}
+
+		err = convertToBigInt(callDataMap)
+		if err != nil {
+			return "", err
+		}
+
+		modifiedCallData, err := json.Marshal(callDataMap)
+		if err != nil {
+			return "", err
+		}
+
+		data["callData"] = string(modifiedCallData)
+	}
+
+	encodedBytes, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	return string(encodedBytes), nil
+}
+
+// convertToBigInt recursively converts numeric strings within a map or slice to big.Int.
+func convertToBigInt(data interface{}) error {
+	switch val := data.(type) {
+	case map[string]interface{}:
+		for k, v := range val {
+			if str, ok := v.(string); ok && isNumericString(str) {
+				if num, err := strconv.ParseInt(str, 10, 64); err == nil {
+					bigInt := big.NewInt(num)
+					protoBigInt, err := model.FromBigInt(bigInt)
+					if err != nil {
+						return err
+					}
+					val[k] = protoBigInt.Value
+				}
+			} else if err := convertToBigInt(v); err != nil {
+				return err
+			}
+		}
+	case []interface{}:
+		for _, item := range val {
+			if err := convertToBigInt(item); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// isNumericString checks if a given string represents a numeric value.
+func isNumericString(s string) bool {
+	_, err := strconv.Atoi(s)
+	return err == nil
+}
+
+// fileExists checks if a file exists at the given path.
+func fileExists(path string) bool {
+	_, err := os.Stat(path)
+	return !os.IsNotExist(err)
 }

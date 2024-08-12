@@ -4,6 +4,8 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"encoding/json"
+	"fmt"
+	"github.com/blndgs/intents-sdk/utils"
 	"math/big"
 	"testing"
 
@@ -17,7 +19,7 @@ import (
 )
 
 // TestSign test sign signature.
-func TestSign(t *testing.T) {
+func TestSignConventionalUserOps(t *testing.T) {
 
 	testCases := []struct {
 		name           string
@@ -45,26 +47,6 @@ func TestSign(t *testing.T) {
                 "paymasterAndData": "0x",
                 "signature": "0x8e8a12900df61d02ad6907c15315564f55ae38323c82bb44e673a52c6230bc8455a85e6721575f8b139e0d191d24557d46c6670999552a0ad9d3167e25ad3f0b1b"
             }`,
-			wantErr: false,
-		},
-		{
-			name:           "Successful Signing with Proto Intent userOp",
-			chainID:        big.NewInt(1),
-			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
-			signer:         validPrivateKey(),
-			userOp: `{
-			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
-			  "nonce":"0xf",
-			  "initCode":"0x",
-			  "callData":"{\"sender\":\"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4\",\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"DeC2s6dkAAA=\"},\"chainId\":{\"value\":\"AQ==\"}}}",
-			  "callGasLimit":"0xc3500",
-			  "verificationGasLimit":"0x996a0",
-			  "preVerificationGas":"0x99000",
-			  "maxFeePerGas":"0x0",
-			  "maxPriorityFeePerGas":"0x0",
-			  "paymasterAndData":"0x",
-			  "signature":"0x"
-			}`,
 			wantErr: false,
 		},
 		{
@@ -101,9 +83,86 @@ func TestSign(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
+					t.Errorf("signature is invalid for %s", tc.userOp)
+				}
 			}
-			if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
-				t.Errorf("signature is invalid for %s", tc.userOp)
+		})
+	}
+}
+
+func TestIntentUserOpSign(t *testing.T) {
+
+	testCases := []struct {
+		name           string
+		chainID        *big.Int
+		entryPointAddr common.Address
+		signer         *signer.EOA
+		userOp         string
+		wantErr        bool
+	}{
+		{
+			name:           "Successful Signing with Proto Intent userOp from sample.json",
+			chainID:        big.NewInt(1),
+			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
+			signer:         validPrivateKey(),
+			userOp: `{
+			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+			  "nonce":"0xf",
+			  "initCode":"0x",
+			  "callData":"{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}",
+			  "callGasLimit":"0xc3500",
+			  "verificationGasLimit":"0x996a0",
+			  "preVerificationGas":"0x99000",
+			  "maxFeePerGas":"0x0",
+			  "maxPriorityFeePerGas":"0x0",
+			  "paymasterAndData":"0x",
+			  "signature":"0x"
+			}`,
+			wantErr: false,
+		},
+		{
+			name:           "Successful Signing with Proto Intent userOp",
+			chainID:        big.NewInt(1),
+			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
+			signer:         validPrivateKey(),
+			userOp: `{
+			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+			  "nonce":"0xf",
+			  "initCode":"0x",
+			  "callData":"{\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}}}",
+			  "callGasLimit":"0xc3500",
+			  "verificationGasLimit":"0x996a0",
+			  "preVerificationGas":"0x99000",
+			  "maxFeePerGas":"0x0",
+			  "maxPriorityFeePerGas":"0x0",
+			  "paymasterAndData":"0x",
+			  "signature":"0x"
+			}`,
+			wantErr: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			callDataEncoded, err := utils.ProcessCallDataUsingBigInt(tc.userOp)
+			if err != nil {
+				panic(fmt.Errorf("error encoding callData: %v", err))
+			}
+
+			var userOp model.UserOperation
+			err = json.Unmarshal([]byte(callDataEncoded), &userOp)
+			if err != nil {
+				panic(err)
+			}
+			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
+					t.Errorf("signature is invalid for %s", tc.userOp)
+				}
 			}
 		})
 	}
