@@ -15,7 +15,7 @@ import (
 // Client wraps the Ethereum client.
 type Client struct {
 	nodeURL   string
-	ethClient *ethclient.Client
+	EthClient *ethclient.Client
 }
 
 // NewClient creates a new Ethereum client.
@@ -24,10 +24,10 @@ func NewClient(nodeURL string) *Client {
 	if err != nil {
 		log.Fatalf("Failed to connect to the Ethereum client: %v", err)
 	}
-	return &Client{nodeURL: nodeURL, ethClient: client}
+	return &Client{nodeURL: nodeURL, EthClient: client}
 }
 
-// GetNodeIDs returns the nonce.
+// GetNonce returns the next on-chain nonce.
 func (c *Client) GetNonce(address common.Address) (*big.Int, error) {
 	// Get the Keccak-256 hash of the function signature "getNonce()"
 	funcSigBytes := crypto.Keccak256([]byte("getNonce()"))
@@ -54,7 +54,7 @@ func (c *Client) GetNonce(address common.Address) (*big.Int, error) {
 // GetChainID returns the chain id.
 func (c *Client) GetChainID(address common.Address) (chainID *big.Int, err error) {
 	// Retrieve the chain ID
-	chainID, err = c.ethClient.ChainID(context.Background())
+	chainID, err = c.EthClient.ChainID(context.Background())
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve the chain ID: %w", err)
 	}
@@ -63,7 +63,7 @@ func (c *Client) GetChainID(address common.Address) (chainID *big.Int, err error
 
 // GetCurrentBlockNumber returns the current block number.
 func (c *Client) GetCurrentBlockNumber() (uint64, error) {
-	header, err := c.ethClient.HeaderByNumber(context.Background(), nil)
+	header, err := c.EthClient.HeaderByNumber(context.Background(), nil)
 	if err != nil {
 		return 0, err
 	}
@@ -73,7 +73,7 @@ func (c *Client) GetCurrentBlockNumber() (uint64, error) {
 // GetAccountBalance returns the balance of the specified account.
 func (c *Client) GetAccountBalance(accountAddress string) (*big.Int, error) {
 	account := common.HexToAddress(accountAddress)
-	balance, err := c.ethClient.BalanceAt(context.Background(), account, nil)
+	balance, err := c.EthClient.BalanceAt(context.Background(), account, nil)
 	if err != nil {
 		return nil, err
 	}
