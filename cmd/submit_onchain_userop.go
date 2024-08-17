@@ -18,13 +18,13 @@ import (
 
 // init initializes the submitUserOp command and adds it to the root command.
 func init() {
-	utils.AddCommonFlags(SubmitUserOpCmd)
+	utils.AddCommonFlags(OnChainUserOpCmd)
 }
 
-// SubmitUserOpCmd represents the command to submit user operations on-chain.
-var SubmitUserOpCmd = &cobra.Command{
-	Use:   "submit",
-	Short: "Submit a signed userOp on-chain",
+// OnChainUserOpCmd represents the command to submit user operations on-chain.
+var OnChainUserOpCmd = &cobra.Command{
+	Use:   "onchain",
+	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
 		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
