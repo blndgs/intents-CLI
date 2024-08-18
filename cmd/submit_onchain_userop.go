@@ -8,6 +8,7 @@ import (
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
+	geth "github.com/ethereum/go-ethereum/ethclient"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stackup-wallet/stackup-bundler/pkg/entrypoint/transaction"
@@ -55,42 +56,63 @@ var OnChainUserOpCmd = &cobra.Command{
 }
 
 func submit(ctx context.Context, node *ethclient.Client, chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation) {
-	baseFee, err := node.EthClient.SuggestGasPrice(ctx)
+	gasParams, err := getGasParams(ctx, node.EthClient)
 	if err != nil {
-		panic(errors.Wrap(err, "failed to get base fee"))
+		panic(err)
 	}
 
-	tip, err := node.EthClient.SuggestGasTipCap(ctx)
+	opts := createTransactionOpts(chainID, entrypointAddr, eoaSigner, signedUserOp, gasParams)
+
+	if err := executeUserOperation(opts); err != nil {
+		panic(err)
+	}
+}
+
+func getGasParams(ctx context.Context, rpc *geth.Client) (config.GasParams, error) {
+	header, err := rpc.HeaderByNumber(ctx, nil)
 	if err != nil {
-		panic(errors.Wrap(err, "failed to get gas tip"))
+		return config.GasParams{}, errors.Wrap(err, "failed to get latest block header")
+	}
+	baseFee := header.BaseFee
+
+	tipCap, err := rpc.SuggestGasTipCap(ctx)
+	if err != nil {
+		return config.GasParams{}, errors.Wrap(err, "failed to get gas tip cap")
 	}
 
-	gasPrice, err := node.EthClient.SuggestGasPrice(ctx)
-	if err != nil {
-		panic(errors.Wrap(err, "failed to get gas price"))
-	}
+	// legacy gas price calculation
+	gasPrice := new(big.Int).Add(baseFee, tipCap)
 
+	return config.GasParams{
+		BaseFee:  baseFee,
+		Tip:      tipCap,
+		GasPrice: gasPrice,
+	}, nil
+}
+
+func createTransactionOpts(chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation, gasParams config.GasParams) transaction.Opts {
 	stackupUserOp := stackup_userop.UserOperation(*signedUserOp)
-	opts := transaction.Opts{
+	return transaction.Opts{
 		EOA:         eoaSigner,
-		Eth:         node.EthClient,
 		ChainID:     chainID,
 		EntryPoint:  entrypointAddr,
 		Batch:       []*stackup_userop.UserOperation{&stackupUserOp},
 		Beneficiary: eoaSigner.Address,
-		BaseFee:     baseFee,
-		Tip:         tip,
-		GasPrice:    gasPrice,
+		BaseFee:     gasParams.BaseFee,
+		Tip:         gasParams.Tip,
+		GasPrice:    gasParams.GasPrice,
 		GasLimit:    0,
 		NoSend:      false,
 		WaitTimeout: 0,
 	}
+}
 
-	// Submit the signed user operation on-chain.
+func executeUserOperation(opts transaction.Opts) error {
 	tx, err := transaction.HandleOps(&opts)
 	if err != nil {
-		panic(errors.Wrap(err, "failed to submit user operation on-chain"))
+		return errors.Wrap(err, "failed to submit user operation on-chain")
 	}
 
 	fmt.Printf("UserOperation executed successfully, tx hash: %s\n", tx.Hash().Hex())
+	return nil
 }
