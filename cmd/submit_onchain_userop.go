@@ -27,32 +27,36 @@ var OnChainUserOpCmd = &cobra.Command{
 	Use:   "onchain",
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
-		// Read configuration and initialize necessary components.
-		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		fmt.Println("submit userOp:", userOp)
-
-		sender := userOp.Sender
-		fmt.Println("sender address: ", sender)
-
-		// Initialize Ethereum client and retrieve nonce and chain ID.
-		node := ethclient.NewClient(nodeUrl)
-		nonce, err := node.GetNonce(sender)
-		if err != nil {
-			panic(err)
-		}
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
-
-		chainID, err := node.GetChainID(sender)
-		if err != nil {
-			panic(err)
-		}
-
-		signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
-
-		ctx := context.Background()
-		submit(ctx, node, chainID, entrypointAddr, eoaSigner, unsignedUserOp)
+		SubmitOnChain(userOp)
 	},
+}
+
+func SubmitOnChain(userOp *model.UserOperation) {
+	// Read configuration and initialize necessary components.
+	nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
+	fmt.Println("submit userOp:", userOp)
+
+	sender := userOp.Sender
+	fmt.Println("sender address: ", sender)
+
+	// Initialize Ethereum client and retrieve nonce and chain ID.
+	node := ethclient.NewClient(nodeUrl)
+	nonce, err := node.GetNonce(sender)
+	if err != nil {
+		panic(err)
+	}
+	unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
+
+	chainID, err := node.GetChainID(sender)
+	if err != nil {
+		panic(err)
+	}
+
+	signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
+
+	ctx := context.Background()
+	submit(ctx, node, chainID, entrypointAddr, eoaSigner, unsignedUserOp)
 }
 
 func submit(ctx context.Context, node *ethclient.Client, chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation) {
