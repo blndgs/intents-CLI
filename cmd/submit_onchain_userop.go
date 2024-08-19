@@ -65,7 +65,7 @@ func submit(ctx context.Context, node *ethclient.Client, chainID *big.Int, entry
 		panic(err)
 	}
 
-	opts := createTransactionOpts(chainID, entrypointAddr, eoaSigner, signedUserOp, gasParams)
+	opts := createTransactionOpts(node.EthClient, chainID, entrypointAddr, eoaSigner, signedUserOp, gasParams)
 
 	if err := executeUserOperation(opts); err != nil {
 		panic(err)
@@ -94,9 +94,10 @@ func getGasParams(ctx context.Context, rpc *geth.Client) (config.GasParams, erro
 	}, nil
 }
 
-func createTransactionOpts(chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation, gasParams config.GasParams) transaction.Opts {
+func createTransactionOpts(rpcClient *geth.Client, chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation, gasParams config.GasParams) transaction.Opts {
 	stackupUserOp := stackup_userop.UserOperation(*signedUserOp)
 	return transaction.Opts{
+		Eth:         rpcClient,
 		EOA:         eoaSigner,
 		ChainID:     chainID,
 		EntryPoint:  entrypointAddr,
