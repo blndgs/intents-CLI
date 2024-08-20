@@ -2,10 +2,6 @@
 
 A CLI tool for signing and executing user operations.
 
-## Getting Started
-
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
-
 ### Building the Application
 
 To build the application, run:
@@ -69,6 +65,8 @@ intents-cli sign --u '{
 ```
 
 2 - Sign a userOp with initcode and calldata values:
+
+Note here the EIP-4337 initcode spec for creating a new account: [initcode-spec.md](./initcode-spec.md)
 
 ```shell
 intents-cli sign --u '{
