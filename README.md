@@ -50,9 +50,40 @@ intents-cli [command] --u ./sample.json
 - `--u`: User operation JSON as string or path to a JSON file.
 
 ### Example
+1 - Sign a blank userOp without initcode or calldata values:
 
-```sh
-intents-cli sign 
+```shell
+intents-cli sign --u '{
+        "sender":"0x1af5Dc71CE5F2e3aE90bf2b3ECD0a3498f981ab3",
+        "nonce":"0x0",
+        "initCode":"0x",
+        "callData":"",
+        "callGasLimit":"0xc3500",
+        "verificationGasLimit":"0x996a0",
+        "preVerificationGas":"0x99000",
+        "maxFeePerGas":"0x0",
+        "maxPriorityFeePerGas":"0x0",
+        "paymasterAndData":"0x",
+        "signature":"0x"
+}'
+```
+
+2 - Sign a userOp with initcode and calldata values:
+
+```shell
+intents-cli sign --u '{
+        "sender":"0x1af5Dc71CE5F2e3aE90bf2b3ECD0a3498f981ab3",
+        "nonce":"0x0",
+        "initCode":"0x42E60c23aCe33c23e0945a07f6e2c1E53843a1d55fbfb9cf000000000000000000000000fd4ec985482e1ed2b651293025EDaD889FaC3947",
+        "callData":"0x5fbfb9cf000000000000000000000000fd4ec985482e1ed2b651293025EDaD889FaC394700",
+        "callGasLimit":"0xc3500",
+        "verificationGasLimit":"0x996a0",
+        "preVerificationGas":"0x99000",
+        "maxFeePerGas":"0x0",
+        "maxPriorityFeePerGas":"0x0",
+        "paymasterAndData":"0x",
+        "signature":"0x"
+}'
 ```
 
 ### Cleaning Up
