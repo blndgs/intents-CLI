@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"math/big"
 	"os"
+	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -93,24 +95,31 @@ func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
 		return "", err
 	}
 
-	if callData, ok := data["callData"].(string); ok {
-		var callDataMap map[string]interface{}
-		err := json.Unmarshal([]byte(callData), &callDataMap)
-		if err != nil {
-			return "", err
-		}
+	if callData, ok := data["callData"].(string); ok && callData != "" && callData != "{}" && callData != "0x" {
+		if !isValidHex(callData) {
+			var callDataMap map[string]interface{}
+			err := json.Unmarshal([]byte(callData), &callDataMap)
+			if err != nil {
+				return "", err
+			}
 
-		err = convertToBigInt(callDataMap)
-		if err != nil {
-			return "", err
-		}
+			err = convertToBigInt(callDataMap)
+			if err != nil {
+				return "", err
+			}
 
-		modifiedCallData, err := json.Marshal(callDataMap)
-		if err != nil {
-			return "", err
-		}
+			modifiedCallData, err := json.Marshal(callDataMap)
+			if err != nil {
+				return "", err
+			}
 
-		data["callData"] = string(modifiedCallData)
+			data["callData"] = string(modifiedCallData)
+		}
+	}
+
+	// If callData is empty, set it to valid 0 hex value "0x"
+	if data["callData"] == "{}" || data["callData"] == "" {
+		data["callData"] = "0x"
 	}
 
 	encodedBytes, err := json.Marshal(data)
@@ -119,6 +128,16 @@ func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
 	}
 
 	return string(encodedBytes), nil
+}
+
+func isValidHex(s string) bool {
+	if !strings.HasPrefix(s, "0x") {
+		return false
+	}
+
+	hexPart := s[2:]
+	match, _ := regexp.MatchString("^[0-9a-fA-F]+$", hexPart)
+	return match
 }
 
 // convertToBigInt recursively converts numeric strings within a map or slice to big.Int.
