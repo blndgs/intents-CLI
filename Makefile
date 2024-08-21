@@ -1,10 +1,10 @@
 # Variables
 BINARY_FOLDER = build
-BINARY_NAME = intents-sdk
+BINARY_NAME = intents-cli
 
 # Build the Go binary
 build:
-	@echo "Building the Go binary..."
+	@echo "Building" $(BINARY_NAME) "in the" $(BINARY_FOLDER) "folder..."
 	@go build -o $(BINARY_FOLDER)/$(BINARY_NAME)
 
 # Lint the Go code

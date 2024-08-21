@@ -12,9 +12,9 @@ import (
 func main() {
 	// Create a new root command
 	rootCmd := &cobra.Command{
-		Use:   "intents-sdk",
-		Short: "Intents SDK Command Line Interface",
-		Long:  `Intents SDK CLI provides tools for signing and sending user operations.`,
+		Use:   "intents-cli",
+		Short: "Intents CLI Command Line Interface",
+		Long:  `Intents CLI provides tools for signing and submitting user operations.`,
 	}
 
 	log.SetOutput(os.Stdout)
