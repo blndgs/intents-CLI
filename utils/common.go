@@ -88,6 +88,11 @@ func PrintSignature(userOp *model.UserOperation) {
 
 // ProcessCallDataUsingBigInt convert the int to ProtoBigInt.
 func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
+	// Use regex to trim whitespace before or after " quote characters
+	re := regexp.MustCompile(`\s*"\s*`)
+	jsonData = re.ReplaceAllStringFunc(jsonData, func(match string) string {
+		return `"`
+	})
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(jsonData), &data)
 	if err != nil {
