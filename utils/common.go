@@ -67,13 +67,13 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperat
 	zero := big.NewInt(0)
 
 	if userOp.CallGasLimit.Cmp(zero) == 0 {
-		userOp.CallGasLimit = big.NewInt(200000)
+		userOp.CallGasLimit = big.NewInt(65536)
 	}
 	if userOp.VerificationGasLimit.Cmp(zero) == 0 {
 		userOp.VerificationGasLimit = big.NewInt(65536)
 	}
 	if userOp.PreVerificationGas.Cmp(zero) == 0 {
-		userOp.PreVerificationGas = big.NewInt(65536)
+		userOp.PreVerificationGas = big.NewInt(70000)
 	}
 
 	userOp.Nonce = nonce
