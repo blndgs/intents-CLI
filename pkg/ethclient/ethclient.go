@@ -2,7 +2,6 @@ package ethclient
 
 import (
 	"context"
-	"fmt"
 	"log"
 	"math/big"
 
@@ -49,33 +48,4 @@ func (c *Client) GetNonce(address common.Address) (*big.Int, error) {
 	nonce := new(big.Int)
 	nonce.SetString(result[2:], 16)
 	return nonce, nil
-}
-
-// GetChainID returns the chain id.
-func (c *Client) GetChainID(address common.Address) (chainID *big.Int, err error) {
-	// Retrieve the chain ID
-	chainID, err = c.EthClient.ChainID(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve the chain ID: %w", err)
-	}
-	return chainID, nil
-}
-
-// GetCurrentBlockNumber returns the current block number.
-func (c *Client) GetCurrentBlockNumber() (uint64, error) {
-	header, err := c.EthClient.HeaderByNumber(context.Background(), nil)
-	if err != nil {
-		return 0, err
-	}
-	return header.Number.Uint64(), nil
-}
-
-// GetAccountBalance returns the balance of the specified account.
-func (c *Client) GetAccountBalance(accountAddress string) (*big.Int, error) {
-	account := common.HexToAddress(accountAddress)
-	balance, err := c.EthClient.BalanceAt(context.Background(), account, nil)
-	if err != nil {
-		return nil, err
-	}
-	return balance, nil
 }
