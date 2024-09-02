@@ -10,14 +10,16 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common/hexutil"
+
+	"github.com/blndgs/model"
 	"github.com/spf13/cobra"
 )
 
 // AddCommonFlags adds common flags to the provided Cobra command.
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
+	cmd.Flags().Uint64("x", 0, "cross-chain chain-id (optional)")
 
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
@@ -60,6 +62,16 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
 	}
 	return &userOp
+}
+
+// GetXChainID returns the cross-chain chain ID provided in the command flags.
+func GetXChainID(cmd *cobra.Command) uint64 {
+	xchainID, err := cmd.Flags().GetUint64("x")
+	if err != nil {
+		panic(fmt.Errorf("error reading xchain-id: %v", err))
+	}
+
+	return xchainID
 }
 
 // UpdateUserOp sets the nonce value and 4337 default gas limits if they are zero.

@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
@@ -30,6 +31,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 		fmt.Println("send and sign userOp:", userOp)
+		xChainID := utils.GetXChainID(cmd)
 
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)
@@ -42,16 +44,21 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		}
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-		chainID, err := ethClient.GetChainID(sender)
+		chainID, err := ethClient.EthClient.ChainID(context.Background())
 		if err != nil {
 			panic(err)
 		}
 
-		fmt.Printf("\nchain-id:%s\n", chainID)
-		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
+		signatureChainID := new(big.Int).Set(chainID)
+		if xChainID != 0 {
+			signatureChainID.SetUint64(xChainID)
+		}
+
+		fmt.Printf("\nchain-id:%s,0x%x, xchain-id:0x%x\n", chainID, chainID, xChainID)
+		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, signatureChainID).String())
 
 		// Sign and send the user operation.
-		signAndSendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
+		signAndSendUserOp(signatureChainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
 		// Print signature
 		utils.PrintSignature(userOp)
 	},

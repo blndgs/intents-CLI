@@ -3,6 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
+	"math/big"
+
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/utils"
@@ -14,7 +16,6 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/entrypoint/transaction"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 	stackup_userop "github.com/stackup-wallet/stackup-bundler/pkg/userop"
-	"math/big"
 )
 
 // init initializes the submitUserOp command and adds it to the root command.
@@ -28,11 +29,12 @@ var OnChainUserOpCmd = &cobra.Command{
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
 		userOp := utils.GetUserOps(cmd)
-		SubmitOnChain(userOp)
+		xChainID := utils.GetXChainID(cmd)
+		SubmitOnChain(userOp, xChainID)
 	},
 }
 
-func SubmitOnChain(userOp *model.UserOperation) {
+func SubmitOnChain(userOp *model.UserOperation, xChainID uint64) {
 	// Read configuration and initialize necessary components.
 	nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 	fmt.Println("submit userOp:", userOp)
@@ -48,12 +50,19 @@ func SubmitOnChain(userOp *model.UserOperation) {
 	}
 	unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-	chainID, err := node.GetChainID(sender)
+	chainID, err := node.EthClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
 	}
 
-	signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
+	signatureChainID := new(big.Int).Set(chainID)
+	if xChainID != 0 {
+		signatureChainID.SetUint64(xChainID)
+	}
+
+	fmt.Printf("\nchain-id:%s,0x%x, xchain-id:0x%x\n", chainID, chainID, xChainID)
+
+	signUserOp(signatureChainID, entrypointAddr, eoaSigner, unsignedUserOp)
 
 	ctx := context.Background()
 	submit(ctx, node, chainID, entrypointAddr, eoaSigner, unsignedUserOp)
