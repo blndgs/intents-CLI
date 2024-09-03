@@ -95,25 +95,7 @@ func PrepareHandleOpCalldata(ops []model.UserOperation, beneficiary common.Addre
 		return "", fmt.Errorf("failed to read abi json: %s", err)
 	}
 
-	// Convert UserOperation slice to []UserOperationABI for ABI encoding
-	opsABI := make([]model.UserOperation, len(ops))
-	for i, op := range ops {
-		opsABI[i] = model.UserOperation{
-			Sender:               op.Sender,
-			Nonce:                op.Nonce,
-			InitCode:             op.InitCode,
-			CallData:             op.CallData,
-			CallGasLimit:         op.CallGasLimit,
-			VerificationGasLimit: op.VerificationGasLimit,
-			PreVerificationGas:   op.PreVerificationGas,
-			MaxFeePerGas:         op.MaxFeePerGas,
-			MaxPriorityFeePerGas: op.MaxPriorityFeePerGas,
-			PaymasterAndData:     op.PaymasterAndData,
-			Signature:            op.Signature,
-		}
-	}
-
-	calldata, err := parsedABI.Pack("handleOps", opsABI, beneficiary)
+	calldata, err := parsedABI.Pack("handleOps", ops, beneficiary)
 	if err != nil {
 		return "", fmt.Errorf("failed to pack data: %s", err)
 	}
