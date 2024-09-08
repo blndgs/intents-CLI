@@ -17,12 +17,12 @@ import (
 func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) (*model.UserOperation, error) {
 	signature, err := getSignature(chainID, signer.PrivateKey, entryPointAddr, userOp)
 	if err != nil {
-		return &model.UserOperation{}, err
+		return nil, err
 	}
 	// Verify the signature
 	userOp.Signature = signature
 	if !VerifySignature(chainID, signer.PublicKey, entryPointAddr, userOp) {
-		return &model.UserOperation{}, fmt.Errorf("signature is invalid")
+		return nil, fmt.Errorf("signature is invalid")
 	}
 	return userOp, nil
 }
