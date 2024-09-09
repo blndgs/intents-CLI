@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/blndgs/intents-sdk/pkg/abi"
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/utils"
@@ -61,6 +62,12 @@ func SubmitOnChain(userOp *model.UserOperation, xChainID uint64) {
 	}
 
 	fmt.Printf("\nchain-id:%s,0x%x, xchain-id:0x%x\n", chainID, chainID, xChainID)
+	calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
+	if err != nil {
+		panic(errors.Wrap(err, "error preparing userOp calldata"))
+	}
+
+	fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
 	signUserOp(signatureChainID, entrypointAddr, eoaSigner, unsignedUserOp)
 
