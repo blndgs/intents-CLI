@@ -10,16 +10,14 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ethereum/go-ethereum/common/hexutil"
-
 	"github.com/blndgs/model"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
 
 // AddCommonFlags adds common flags to the provided Cobra command.
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
-	cmd.Flags().Uint64("x", 0, "cross-chain chain-id (optional)")
 
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)

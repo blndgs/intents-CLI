@@ -30,12 +30,11 @@ var OnChainUserOpCmd = &cobra.Command{
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
 		userOp := utils.GetUserOps(cmd)
-		xChainID := utils.GetXChainID(cmd)
-		SubmitOnChain(userOp, xChainID)
+		SubmitOnChain(userOp)
 	},
 }
 
-func SubmitOnChain(userOp *model.UserOperation, xChainID uint64) {
+func SubmitOnChain(userOp *model.UserOperation) {
 	// Read configuration and initialize necessary components.
 	nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 	fmt.Println("submit userOp:", userOp)
@@ -56,12 +55,8 @@ func SubmitOnChain(userOp *model.UserOperation, xChainID uint64) {
 		panic(err)
 	}
 
-	signatureChainID := new(big.Int).Set(chainID)
-	if xChainID != 0 {
-		signatureChainID.SetUint64(xChainID)
-	}
+	signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
 
-	fmt.Printf("\nchain-id:%s,0x%x, xchain-id:0x%x\n", chainID, chainID, xChainID)
 	calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
 	if err != nil {
 		panic(errors.Wrap(err, "error preparing userOp calldata"))
@@ -69,7 +64,7 @@ func SubmitOnChain(userOp *model.UserOperation, xChainID uint64) {
 
 	fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
-	signUserOp(signatureChainID, entrypointAddr, eoaSigner, unsignedUserOp)
+	signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
 
 	ctx := context.Background()
 	submit(ctx, node, chainID, entrypointAddr, eoaSigner, unsignedUserOp)

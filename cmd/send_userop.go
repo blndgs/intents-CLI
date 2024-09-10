@@ -33,7 +33,6 @@ var SendUserOpCmd = &cobra.Command{
 		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 		fmt.Println("send userOp:", userOp)
-		xChainID := utils.GetXChainID(cmd)
 
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)
@@ -51,13 +50,7 @@ var SendUserOpCmd = &cobra.Command{
 			panic(err)
 		}
 
-		signatureChainID := new(big.Int).Set(chainID)
-		if xChainID != 0 {
-			signatureChainID.SetUint64(xChainID)
-		}
-
-		fmt.Printf("\nchain-id:%s,0x%x, xchain-id:0x%x\n", chainID, chainID, xChainID)
-		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, signatureChainID).String())
+		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
 		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
 		if err != nil {
 			panic(errors.Wrap(err, "error preparing userOp calldata"))
@@ -65,7 +58,7 @@ var SendUserOpCmd = &cobra.Command{
 
 		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
-		sendUserOp(signatureChainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
+		sendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
 		utils.PrintSignature(userOp)
 	},
 }
