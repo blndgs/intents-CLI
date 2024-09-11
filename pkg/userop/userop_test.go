@@ -5,10 +5,10 @@ import (
 	"crypto/elliptic"
 	"encoding/json"
 	"fmt"
-	"github.com/blndgs/intents-sdk/utils"
 	"math/big"
 	"testing"
 
+	"github.com/blndgs/intents-sdk/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -18,9 +18,8 @@ import (
 	"github.com/blndgs/intents-sdk/pkg/userop"
 )
 
-// TestSign test sign signature.
+// TestSignConventionalUserOps tests signing of non-Intent UserOperations.
 func TestSignConventionalUserOps(t *testing.T) {
-
 	testCases := []struct {
 		name           string
 		chainID        *big.Int
@@ -75,15 +74,14 @@ func TestSignConventionalUserOps(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var userOp model.UserOperation
 			err := json.Unmarshal([]byte(tc.userOp), &userOp)
-			if err != nil {
-				panic(err)
-			}
-			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			require.NoError(t, err)
+
+			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
+				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp) {
 					t.Errorf("signature is invalid for %s", tc.userOp)
 				}
 			}
@@ -178,7 +176,7 @@ func validPrivateKey() *signer.EOA {
 	}
 }
 
-// invalidPrivateKey is a invalid signer keys.
+// invalidPrivateKey generates an invalid signer key.
 func invalidPrivateKey() *signer.EOA {
 	return &signer.EOA{
 		PrivateKey: &ecdsa.PrivateKey{
