@@ -1,11 +1,14 @@
 package cmd
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 
+	"github.com/blndgs/intents-sdk/pkg/abi"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 
@@ -42,10 +45,18 @@ var SendUserOpCmd = &cobra.Command{
 		}
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-		chainID, err := ethClient.GetChainID(sender)
+		chainID, err := ethClient.EthClient.ChainID(context.Background())
 		if err != nil {
 			panic(err)
 		}
+
+		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
+		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
+		if err != nil {
+			panic(errors.Wrap(err, "error preparing userOp calldata"))
+		}
+
+		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
 		sendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
 		utils.PrintSignature(userOp)

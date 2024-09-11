@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math/big"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -9,6 +10,12 @@ import (
 	"github.com/spf13/viper"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
+
+type GasParams struct {
+	BaseFee  *big.Int
+	Tip      *big.Int
+	GasPrice *big.Int
+}
 
 // ReadConf reads configuration from a .env file and initializes
 // necessary variables like node URL, signer, bundler URL, and entry point address.

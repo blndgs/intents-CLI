@@ -62,19 +62,18 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 	return &userOp
 }
 
-// UpdateUserOp updates the given user operation based on the provided nonce flag.
-// The function returns the updated UserOperation object.
+// UpdateUserOp sets the nonce value and 4337 default gas limits if they are zero.
 func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperation {
 	zero := big.NewInt(0)
 
 	if userOp.CallGasLimit.Cmp(zero) == 0 {
-		userOp.CallGasLimit = big.NewInt(500000)
+		userOp.CallGasLimit = big.NewInt(65536)
 	}
 	if userOp.VerificationGasLimit.Cmp(zero) == 0 {
 		userOp.VerificationGasLimit = big.NewInt(65536)
 	}
 	if userOp.PreVerificationGas.Cmp(zero) == 0 {
-		userOp.PreVerificationGas = big.NewInt(65536)
+		userOp.PreVerificationGas = big.NewInt(70000)
 	}
 
 	userOp.Nonce = nonce
@@ -89,6 +88,11 @@ func PrintSignature(userOp *model.UserOperation) {
 
 // ProcessCallDataUsingBigInt convert the int to ProtoBigInt.
 func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
+	// Use regex to trim whitespace before or after " quote characters
+	re := regexp.MustCompile(`\s*"\s*`)
+	jsonData = re.ReplaceAllStringFunc(jsonData, func(match string) string {
+		return `"`
+	})
 	var data map[string]interface{}
 	err := json.Unmarshal([]byte(jsonData), &data)
 	if err != nil {
