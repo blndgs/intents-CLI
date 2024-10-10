@@ -70,8 +70,8 @@ func TestMatchSoliditySignature(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &tc.userOp)
 			require.NoError(t, err)
-			if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp) {
-				require.True(t, userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp), "signature is invalid for %s", tc.userOp)
+			isValid := userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp)
+			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
 			actualSig := fmt.Sprintf("%x", signedOp.Signature)
 			require.Equal(t, tc.expectedSignature, actualSig)
 		})
