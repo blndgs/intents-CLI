@@ -5,10 +5,10 @@ import (
 	"crypto/elliptic"
 	"encoding/json"
 	"fmt"
-	"github.com/blndgs/intents-sdk/utils"
 	"math/big"
 	"testing"
 
+	"github.com/blndgs/intents-sdk/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -18,9 +18,68 @@ import (
 	"github.com/blndgs/intents-sdk/pkg/userop"
 )
 
-// TestSign test sign signature.
-func TestSignConventionalUserOps(t *testing.T) {
+// TestMatchSoliditySignature tests signing of classic and Intent UserOperations.
+func TestMatchSoliditySignature(t *testing.T) {
+	testCases := []struct {
+		name              string
+		chainID           *big.Int
+		entryPointAddr    common.Address
+		signer            *signer.EOA
+		userOp            model.UserOperation
+		expectedSignature string
+	}{
+		{
+			name:           "Match Solidity Signature with conventional userOp",
+			chainID:        big.NewInt(137),
+			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
+			signer:         mustCreateSigner("e8776ff1bf88707b464bda52319a747a71c41a137277161dcabb9f821d6c0bd7"),
+			userOp: model.UserOperation{
+				Sender:               common.HexToAddress("0x6B5f6558CB8B3C8Fec2DA0B1edA9b9d5C064ca47"),
+				Nonce:                big.NewInt(0),
+				InitCode:             []byte{},
+				CallData:             []byte{},
+				CallGasLimit:         big.NewInt(3000000),
+				VerificationGasLimit: big.NewInt(3000000),
+				PreVerificationGas:   big.NewInt(47984),
+				MaxFeePerGas:         big.NewInt(33900000030),
+				MaxPriorityFeePerGas: big.NewInt(33900000000),
+			},
+			expectedSignature: "b85bc0d0d063ec3f9b008da439afc9621d951c01a2535013fa1d8a1f2e804a5676e3bacc27979303701c25332536852b884b3746484e8043bab3964a14f4c9dd1c",
+		},
+		{
+			name:           "Match Solidity Signature with Intent userOp",
+			chainID:        big.NewInt(137),
+			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
+			signer:         mustCreateSigner("e8776ff1bf88707b464bda52319a747a71c41a137277161dcabb9f821d6c0bd7"),
+			userOp: model.UserOperation{
+				Sender:               common.HexToAddress("0x6B5f6558CB8B3C8Fec2DA0B1edA9b9d5C064ca47"),
+				Nonce:                big.NewInt(0x0),
+				InitCode:             []byte{},
+				CallData:             []byte("{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}"),
+				CallGasLimit:         big.NewInt(35000),
+				VerificationGasLimit: big.NewInt(70000),
+				PreVerificationGas:   big.NewInt(21000),
+				MaxFeePerGas:         big.NewInt(90400000032),
+				MaxPriorityFeePerGas: big.NewInt(90400000000),
+			},
+			expectedSignature: "1a68b7ec156022b8ff9403cb3ce5889546e554e00497e6450049fb18638cd6237ecf6827680e53f0c199e673b55838e2d183a7aec7db78c3853505d87c16ac861c",
+		},
+	}
 
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &tc.userOp)
+			require.NoError(t, err)
+			isValid := userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp)
+			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
+			actualSig := fmt.Sprintf("%x", signedOp.Signature)
+			require.Equal(t, tc.expectedSignature, actualSig)
+		})
+	}
+}
+
+// TestSignConventionalUserOps tests signing of non-Intent UserOperations.
+func TestSignConventionalUserOps(t *testing.T) {
 	testCases := []struct {
 		name           string
 		chainID        *big.Int
@@ -75,17 +134,14 @@ func TestSignConventionalUserOps(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			var userOp model.UserOperation
 			err := json.Unmarshal([]byte(tc.userOp), &userOp)
-			if err != nil {
-				panic(err)
-			}
-			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			require.NoError(t, err)
+
+			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
-					t.Errorf("signature is invalid for %s", tc.userOp)
-				}
+				require.True(t, userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp), "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}
@@ -168,6 +224,15 @@ func TestIntentUserOpSign(t *testing.T) {
 	}
 }
 
+func mustCreateSigner(pk string) *signer.EOA {
+	account, err := signer.New(pk)
+	if err != nil {
+		panic(err)
+	}
+
+	return account
+}
+
 // validPrivateKey is a valid signer keys.
 func validPrivateKey() *signer.EOA {
 	privateKey, _ := crypto.GenerateKey()
@@ -178,7 +243,7 @@ func validPrivateKey() *signer.EOA {
 	}
 }
 
-// invalidPrivateKey is a invalid signer keys.
+// invalidPrivateKey generates an invalid signer key.
 func invalidPrivateKey() *signer.EOA {
 	return &signer.EOA{
 		PrivateKey: &ecdsa.PrivateKey{
