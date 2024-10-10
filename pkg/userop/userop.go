@@ -13,86 +13,91 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
-// Sign signs the UserOperation with the given private key.
+// Sign signs a single UserOperation with the given private key.
 func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) (*model.UserOperation, error) {
-	signature, err := genSignature(chainID, signer.PrivateKey, entryPointAddr, userOp)
+	userOps := []*model.UserOperation{userOp}
+	chainIDs := []*big.Int{chainID}
+
+	signedOps, err := signUserOperations(chainIDs, entryPointAddr, signer, userOps)
 	if err != nil {
 		return nil, err
 	}
-	// Verify the signature
-	userOp.Signature = signature
-	if !VerifySignature(chainID, signer.PublicKey, entryPointAddr, userOp) {
-		return nil, fmt.Errorf("signature is invalid")
-	}
-	return userOp, nil
+	return signedOps[0], nil
 }
 
-// XSign signs the UserOperations with the given private key.
+// XSign signs multiple UserOperations (cross-chain) with the given private key.
 func XSign(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation) ([]*model.UserOperation, error) {
-	signature, err := genXSignature(chainIDs, signer.PrivateKey, entryPointAddr, userOps)
+	return signUserOperations(chainIDs, entryPointAddr, signer, userOps)
+}
+
+// signUserOperations is a helper function to sign one or multiple UserOperations.
+func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation) ([]*model.UserOperation, error) {
+	if len(chainIDs) != len(userOps) {
+		return nil, errors.New("number of chainIDs and userOps must match")
+	}
+
+	messageHash, err := computeMessageHash(chainIDs, entryPointAddr, userOps)
 	if err != nil {
 		return nil, err
 	}
 
+	signature, err := generateSignature(messageHash, signer.PrivateKey)
+	if err != nil {
+		return nil, err
+	}
+
+	// Assign the signature to all UserOperations
 	for _, op := range userOps {
 		op.Signature = signature
 	}
 
-	// Use VerifyXSignature for cross-chain signatures
-	if !VerifyXSignature(chainIDs, signer.PublicKey, entryPointAddr, userOps) {
+	// Verify the signature
+	if !verifySignature(messageHash, signature, signer.PublicKey) {
 		return nil, fmt.Errorf("signature is invalid")
 	}
 
 	return userOps, nil
 }
 
-// genSignature generates an ECDSA signature.
-func genSignature(chainID *big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr common.Address, userOp *model.UserOperation) ([]byte, error) {
-	userOpHashObj := userOp.GetUserOpHash(entryPointAddr, chainID)
-
-	prefixedHash := getEtherXMsgHash(userOpHashObj)
-
-	signature, err := crypto.Sign(prefixedHash.Bytes(), privateKey)
-	if err != nil {
-		return nil, err
-	}
-	signature[64] += 27 // Transform V from 0/1 to 27/28 according to the yellow paper
-
-	return signature, nil
-}
-
-// genXSignature generates an ECDSA signature for multiple user operations.
-func genXSignature(chainIDs []*big.Int, privateKey *ecdsa.PrivateKey, entryPointAddr common.Address, userOps []*model.UserOperation) ([]byte, error) {
+// computeMessageHash computes the hash to be signed for single or multiple UserOperations.
+func computeMessageHash(chainIDs []*big.Int, entryPointAddr common.Address, userOps []*model.UserOperation) (common.Hash, error) {
 	count := len(userOps)
 	hashes := make([]common.Hash, count)
 	hashBigs := make([]*big.Int, count)
+
 	for i := 0; i < count; i++ {
-		hashes[i] = userOps[i].GetUserOpHash(entryPointAddr, chainIDs[i])
-		hashBigs[i] = new(big.Int).SetBytes(hashes[i][:])
+		hash := userOps[i].GetUserOpHash(entryPointAddr, chainIDs[i])
+		hashes[i] = hash
+		hashBigs[i] = new(big.Int).SetBytes(hash[:])
 	}
-	// Bubble sort the hashes; because the count is small (<4), this is efficient enough
-	for i := 0; i < count; i++ {
-		for j := i + 1; j < count; j++ {
-			if hashBigs[i].Cmp(hashBigs[j]) > 0 {
-				hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
-				hashes[i], hashes[j] = hashes[j], hashes[i]
+
+	if count > 1 {
+		// Sort the hashes
+		for i := 0; i < count; i++ {
+			for j := i + 1; j < count; j++ {
+				if hashBigs[i].Cmp(hashBigs[j]) > 0 {
+					hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
+					hashes[i], hashes[j] = hashes[j], hashes[i]
+				}
 			}
 		}
+		// Concatenate the sorted hashes
+		concatenatedHashes := []byte{}
+		for i := 0; i < count; i++ {
+			concatenatedHashes = append(concatenatedHashes, hashes[i][:]...)
+		}
+		// Compute xChainHash
+		xChainHash := crypto.Keccak256Hash(concatenatedHashes)
+		return xChainHash, nil
 	}
 
-	// Concatenate the sorted hashes
-	var concatenatedHashes []byte
-	for i := 0; i < count; i++ {
-		fmt.Printf("sorted hashes[%d]: 0x%x\n", i, hashes[i][:])
-		concatenatedHashes = append(concatenatedHashes, hashes[i][:]...)
-	}
+	// Single UserOperation
+	return hashes[0], nil
+}
 
-	// Compute xChainHash
-	xChainHash := crypto.Keccak256Hash(concatenatedHashes)
-	fmt.Printf("xChainHash: 0x%x, length:%d, %s\n", xChainHash[:], len(xChainHash), xChainHash)
-
-	prefixedHash := getEtherXMsgHash(xChainHash)
-	fmt.Printf("toEthSignedMessageHash: 0x%x\n", prefixedHash[:])
+// generateSignature signs the prefixed message hash with the private key.
+func generateSignature(messageHash common.Hash, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+	prefixedHash := getEtherMsgHash(messageHash)
 
 	signature, err := crypto.Sign(prefixedHash.Bytes(), privateKey)
 	if err != nil {
@@ -104,91 +109,53 @@ func genXSignature(chainIDs []*big.Int, privateKey *ecdsa.PrivateKey, entryPoint
 		signature[64] += 27
 	}
 
-	fmt.Printf("signature: 0x%x\n", signature[:])
-
 	return signature, nil
 }
 
-// getEtherXMsgHash computes Ethereum signed message hash with fixed prefix for
-// a cross chain operations hash which
-func getEtherXMsgHash(xChainHash common.Hash) common.Hash {
+// getEtherMsgHash computes Ethereum signed message hash with fixed prefix.
+func getEtherMsgHash(messageHash common.Hash) common.Hash {
 	const ethMsgPrefix = "\x19Ethereum Signed Message:\n32"
 	prefix := []byte(ethMsgPrefix)
-	message := append(prefix, xChainHash.Bytes()...)
-	prefixedHash := crypto.Keccak256Hash(message)
-
-	return prefixedHash
+	message := append(prefix, messageHash.Bytes()...)
+	return crypto.Keccak256Hash(message)
 }
 
-// VerifySignature verifies the signature of the UserOperation.
+// VerifySignature verifies the signature of a single UserOperation.
 func VerifySignature(chainID *big.Int, publicKey *ecdsa.PublicKey, entryPointAddr common.Address, userOp *model.UserOperation) bool {
-	if len(userOp.Signature) != 65 {
-		panic(errors.New("signature must be 65 bytes long"))
-	}
-	if userOp.Signature[64] != 27 && userOp.Signature[64] != 28 {
-		panic(errors.New("invalid Ethereum signature (V is not 27 or 28)"))
-	}
+	return VerifyXSignature([]*big.Int{chainID}, publicKey, entryPointAddr, []*model.UserOperation{userOp})
+}
 
-	signature := bytes.Clone(userOp.Signature) // Not in RSV format
-
-	signature[64] -= 27 // Transform yellow paper V from 27/28 to 0/1
-
-	userOpHash := userOp.GetUserOpHash(entryPointAddr, chainID).Bytes()
-	fmt.Printf("verifying userOpHash: 0x%x\n", userOpHash)
-
-	prefixedHash := getEtherXMsgHash(userOp.GetUserOpHash(entryPointAddr, chainID))
-	fmt.Printf("verifying prefixedHash: 0x%x\n", prefixedHash)
-
-	recoveredPubKey, err := crypto.SigToPub(prefixedHash.Bytes(), signature)
-	if err != nil {
-		fmt.Printf("Failed to recover public key: %v\n", err)
+// VerifyXSignature verifies the signature of one or multiple UserOperations.
+func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPointAddr common.Address, userOps []*model.UserOperation) bool {
+	if len(userOps) == 0 {
 		return false
 	}
 
-	recoveredAddress := crypto.PubkeyToAddress(*recoveredPubKey)
-	expectedAddress := crypto.PubkeyToAddress(*publicKey)
-
-	return recoveredAddress == expectedAddress
-}
-
-func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPointAddr common.Address, userOps []*model.UserOperation) bool {
-	if len(userOps[0].Signature) != 65 {
+	signature := userOps[0].Signature
+	if len(signature) != 65 {
 		panic(errors.New("signature must be 65 bytes long"))
 	}
-	if userOps[0].Signature[64] != 27 && userOps[0].Signature[64] != 28 {
+	if signature[64] != 27 && signature[64] != 28 {
 		panic(errors.New("invalid Ethereum signature (V is not 27 or 28)"))
 	}
 
-	signature := bytes.Clone(userOps[0].Signature) // Assuming all signatures are the same
-	signature[64] -= 27                            // Transform yellow paper V from 27/28 to 0/1
-
-	count := len(userOps)
-	hashes := make([]common.Hash, count)
-	hashBigs := make([]*big.Int, count)
-	for i := 0; i < count; i++ {
-		hashes[i] = userOps[i].GetUserOpHash(entryPointAddr, chainIDs[i])
-		hashBigs[i] = new(big.Int).SetBytes(hashes[i][:])
-	}
-	// Bubble sort the hashes
-	for i := 0; i < count; i++ {
-		for j := i + 1; j < count; j++ {
-			if hashBigs[i].Cmp(hashBigs[j]) > 0 {
-				hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
-				hashes[i], hashes[j] = hashes[j], hashes[i]
-			}
-		}
+	messageHash, err := computeMessageHash(chainIDs, entryPointAddr, userOps)
+	if err != nil {
+		fmt.Printf("Failed to compute message hash: %v\n", err)
+		return false
 	}
 
-	// Concatenate the sorted hashes
-	var concatenatedHashes []byte
-	for i := 0; i < count; i++ {
-		concatenatedHashes = append(concatenatedHashes, hashes[i][:]...)
-	}
+	return verifySignature(messageHash, signature, publicKey)
+}
 
-	xChainHash := crypto.Keccak256Hash(concatenatedHashes)
-	prefixedHash := getEtherXMsgHash(xChainHash)
+// verifySignature verifies the signature against the message hash and public key.
+func verifySignature(messageHash common.Hash, signature []byte, publicKey *ecdsa.PublicKey) bool {
+	sigCopy := bytes.Clone(signature)
+	sigCopy[64] -= 27 // Transform V from 27/28 (yellow paper) to 0/1
 
-	recoveredPubKey, err := crypto.SigToPub(prefixedHash.Bytes(), signature)
+	prefixedHash := getEtherMsgHash(messageHash)
+
+	recoveredPubKey, err := crypto.SigToPub(prefixedHash.Bytes(), sigCopy)
 	if err != nil {
 		fmt.Printf("Failed to recover public key: %v\n", err)
 		return false
