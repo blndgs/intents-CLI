@@ -82,7 +82,7 @@ func computeMessageHash(chainIDs []*big.Int, entryPointAddr common.Address, user
 			}
 		}
 		// Concatenate the sorted hashes
-		concatenatedHashes := []byte{}
+		var concatenatedHashes []byte
 		for i := 0; i < count; i++ {
 			concatenatedHashes = append(concatenatedHashes, hashes[i][:]...)
 		}
