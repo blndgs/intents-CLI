@@ -142,9 +142,7 @@ func TestSignConventionalUserOps(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp) {
-					t.Errorf("signature is invalid for %s", tc.userOp)
-				}
+				require.True(t, userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp), "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}
