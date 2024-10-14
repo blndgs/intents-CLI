@@ -10,7 +10,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/model"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
@@ -84,6 +86,16 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperat
 func PrintSignature(userOp *model.UserOperation) {
 	fmt.Printf("\nSignature value after solution:\n%s\n",
 		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
+}
+
+// PrintHash prints the userOp hash value.
+func PrintHash(userOp *model.UserOperation, entrypoint common.Address, chainID *big.Int) {
+	// Convert the byte array to a byte slice
+	hashBytes := userop.GetHash([]*model.UserOperation{userOp}, entrypoint, []*big.Int{chainID}).Bytes()
+
+	// Use the byte slice as input to EncodeToString()
+	encodedHash := hex.EncodeToString(hashBytes)
+	fmt.Printf("\nUserOp's Hash value:\n%s\n", encodedHash)
 }
 
 // ProcessCallDataUsingBigInt convert the int to ProtoBigInt.
