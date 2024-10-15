@@ -22,6 +22,10 @@ var HashUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrl, _, entrypointAddr, _ := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
+		hashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			panic(err)
+		}
 
 		ethClient := ethclient.NewClient(nodeUrl)
 
@@ -31,6 +35,6 @@ var HashUserOpCmd = &cobra.Command{
 		}
 
 		// Print signature
-		utils.PrintHash(userOp, entrypointAddr, chainID)
+		utils.PrintHash(userOp, hashes, entrypointAddr, chainID)
 	},
 }

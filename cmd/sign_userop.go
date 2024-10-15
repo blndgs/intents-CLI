@@ -32,6 +32,10 @@ var SignUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
+		hashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			panic(err)
+		}
 
 		sender := userOp.Sender
 
@@ -54,7 +58,7 @@ var SignUserOpCmd = &cobra.Command{
 		}
 
 		fmt.Printf("\nchain-id:%s\n", chainID)
-		utils.PrintHash(unsignedUserOp, entrypointAddr, chainID)
+		utils.PrintHash(unsignedUserOp, hashes, entrypointAddr, chainID)
 
 		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
 		if err != nil {

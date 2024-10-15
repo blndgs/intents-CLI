@@ -20,6 +20,7 @@ import (
 // AddCommonFlags adds common flags to the provided Cobra command.
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
+	cmd.Flags().String("h", "", "List of other cross-chain user operations hashes")
 
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
@@ -64,6 +65,35 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 	return &userOp
 }
 
+// GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
+func GetHashes(cmd *cobra.Command) ([]common.Hash, error) {
+	hashesStr, _ := cmd.Flags().GetString("h")
+	if hashesStr == "" {
+		return nil, nil // Return nil if the "h" flag is not provided
+	}
+
+	hashes := strings.Split(hashesStr, ",")
+	var parsedHashes []common.Hash
+
+	for _, hashStr := range hashes {
+		hashStr = strings.TrimPrefix(hashStr, "0x")
+		if len(hashStr) != 64 {
+			return nil, fmt.Errorf("invalid hash length: %s", hashStr)
+		}
+
+		hashBytes, err := hex.DecodeString(hashStr)
+		if err != nil {
+			return nil, fmt.Errorf("invalid hash format: %s", hashStr)
+		}
+
+		var hash common.Hash
+		copy(hash[:], hashBytes)
+		parsedHashes = append(parsedHashes, hash)
+	}
+
+	return parsedHashes, nil
+}
+
 // UpdateUserOp sets the nonce value and 4337 default gas limits if they are zero.
 func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperation {
 	zero := big.NewInt(0)
@@ -89,13 +119,14 @@ func PrintSignature(userOp *model.UserOperation) {
 }
 
 // PrintHash prints the userOp hash value.
-func PrintHash(userOp *model.UserOperation, entrypoint common.Address, chainID *big.Int) {
-	// Convert the byte array to a byte slice
-	hashBytes := userop.GetHash([]*model.UserOperation{userOp}, entrypoint, []*big.Int{chainID}).Bytes()
-
-	// Use the byte slice as input to EncodeToString()
-	encodedHash := hex.EncodeToString(hashBytes)
-	fmt.Printf("\nUserOp's Hash value:\n%s\n", encodedHash)
+func PrintHash(userOp *model.UserOperation, hashes []common.Hash, entrypoint common.Address, chainID *big.Int) {
+	if len(hashes) > 0 {
+		// Print the hash value of the userOp and the list of other cross-chain user operations hashes
+		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetXHash(userOp, hashes, entrypoint, []*big.Int{chainID}).String())
+	} else {
+		// Print the hash value of the userOp
+		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetOpsHash([]*model.UserOperation{userOp}, entrypoint, []*big.Int{chainID}).String())
+	}
 }
 
 // ProcessCallDataUsingBigInt convert the int to ProtoBigInt.

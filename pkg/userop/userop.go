@@ -42,7 +42,7 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 		return nil, errors.New("number of chainIDs and userOps must match")
 	}
 
-	messageHash := GetHash(userOps, entryPointAddr, chainIDs)
+	messageHash := GetOpsHash(userOps, entryPointAddr, chainIDs)
 	signature, err := generateSignature(messageHash, signer.PrivateKey)
 	if err != nil {
 		return nil, err
@@ -61,8 +61,8 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 	return userOps, nil
 }
 
-// GetHash computes the hash to be signed for single or multiple UserOperations.
-func GetHash(userOps []*model.UserOperation, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
+// GetOpsHash computes the hash to be signed for single or multiple UserOperations.
+func GetOpsHash(userOps []*model.UserOperation, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
 	count := len(userOps)
 	hashes := make([]common.Hash, count)
 	hashBigs := make([]*big.Int, count)
@@ -83,18 +83,53 @@ func GetHash(userOps []*model.UserOperation, entryPointAddr common.Address, chai
 				}
 			}
 		}
-		// Concatenate the sorted hashes
-		var concatenatedHashes []byte
-		for i := 0; i < count; i++ {
-			concatenatedHashes = append(concatenatedHashes, hashes[i][:]...)
-		}
-		// Compute xChainHash
-		xChainHash := crypto.Keccak256Hash(concatenatedHashes)
-		return xChainHash
+
+		return getAggHash(hashes)
 	}
 
 	// Single UserOperation
 	return hashes[0]
+}
+
+// GetXHash computes the hash for single or appending multiple UserOperations' hashes.
+func GetXHash(userOp *model.UserOperation, hashes []common.Hash, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
+	count := len(hashes) + 1
+	hashes = append(hashes, userOp.GetUserOpHash(entryPointAddr, chainIDs[0]))
+	hashBigs := make([]*big.Int, count)
+
+	for i := 0; i < count; i++ {
+		hashBigs[i] = new(big.Int).SetBytes(hashes[i][:])
+	}
+
+	if count > 1 {
+		// Sort the hashes
+		for i := 0; i < count; i++ {
+			for j := i + 1; j < count; j++ {
+				if hashBigs[i].Cmp(hashBigs[j]) > 0 {
+					hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
+					hashes[i], hashes[j] = hashes[j], hashes[i]
+				}
+			}
+		}
+
+		return getAggHash(hashes)
+	}
+
+	// Single UserOperation
+	return hashes[0]
+}
+
+// getAggHash computes the hash of multiple UserOperations' hashes.
+func getAggHash(hashes []common.Hash) common.Hash {
+	// Concatenate the sorted hashes
+	var concatenatedHashes []byte
+	for _, hash := range hashes {
+		concatenatedHashes = append(concatenatedHashes, hash[:]...)
+	}
+	// Compute xChainHash
+	xChainHash := crypto.Keccak256Hash(concatenatedHashes)
+
+	return xChainHash
 }
 
 // generateSignature signs the prefixed message hash with the private key.
@@ -141,7 +176,7 @@ func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPoin
 		panic(errors.New("invalid Ethereum signature (V is not 27 or 28)"))
 	}
 
-	messageHash := GetHash(userOps, entryPointAddr, chainIDs)
+	messageHash := GetOpsHash(userOps, entryPointAddr, chainIDs)
 
 	return verifySignature(messageHash, signature, publicKey)
 }
