@@ -27,6 +27,12 @@ func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, u
 
 // XSign signs multiple UserOperations (cross-chain) with the given private key.
 func XSign(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation) ([]*model.UserOperation, error) {
+	if len(chainIDs) < 2 {
+		return nil, errors.New("at least two chainIDs are required")
+	}
+	if len(userOps) < 2 {
+		return nil, errors.New("at least two UserOperations are required")
+	}
 	return signUserOperations(chainIDs, entryPointAddr, signer, userOps)
 }
 
@@ -36,11 +42,7 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 		return nil, errors.New("number of chainIDs and userOps must match")
 	}
 
-	messageHash, err := computeMessageHash(chainIDs, entryPointAddr, userOps)
-	if err != nil {
-		return nil, err
-	}
-
+	messageHash := GetHash(userOps, entryPointAddr, chainIDs)
 	signature, err := generateSignature(messageHash, signer.PrivateKey)
 	if err != nil {
 		return nil, err
@@ -59,8 +61,8 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 	return userOps, nil
 }
 
-// computeMessageHash computes the hash to be signed for single or multiple UserOperations.
-func computeMessageHash(chainIDs []*big.Int, entryPointAddr common.Address, userOps []*model.UserOperation) (common.Hash, error) {
+// GetHash computes the hash to be signed for single or multiple UserOperations.
+func GetHash(userOps []*model.UserOperation, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
 	count := len(userOps)
 	hashes := make([]common.Hash, count)
 	hashBigs := make([]*big.Int, count)
@@ -88,11 +90,11 @@ func computeMessageHash(chainIDs []*big.Int, entryPointAddr common.Address, user
 		}
 		// Compute xChainHash
 		xChainHash := crypto.Keccak256Hash(concatenatedHashes)
-		return xChainHash, nil
+		return xChainHash
 	}
 
 	// Single UserOperation
-	return hashes[0], nil
+	return hashes[0]
 }
 
 // generateSignature signs the prefixed message hash with the private key.
@@ -139,11 +141,7 @@ func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPoin
 		panic(errors.New("invalid Ethereum signature (V is not 27 or 28)"))
 	}
 
-	messageHash, err := computeMessageHash(chainIDs, entryPointAddr, userOps)
-	if err != nil {
-		fmt.Printf("Failed to compute message hash: %v\n", err)
-		return false
-	}
+	messageHash := GetHash(userOps, entryPointAddr, chainIDs)
 
 	return verifySignature(messageHash, signature, publicKey)
 }
