@@ -53,7 +53,7 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 	// no cross-chain hashes provided but 1 or more UserOperations
 	if len(hashes) == 0 {
 		messageHash = GetOpsHash(userOps, entryPointAddr, chainIDs)
-		signature, err = generateSignature(messageHash, signer.PrivateKey)
+		signature, err = GenerateSignature(messageHash, signer.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -61,7 +61,7 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 		// hashes are provided for all but the first UserOperation
 	} else {
 		messageHash = GetXHash(userOps[0], hashes, entryPointAddr, chainIDs)
-		signature, err = generateSignature(messageHash, signer.PrivateKey)
+		signature, err = GenerateSignature(messageHash, signer.PrivateKey)
 		if err != nil {
 			return nil, err
 		}
@@ -73,7 +73,7 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 	}
 
 	// Verify the signature
-	if !verifySignature(messageHash, signature, signer.PublicKey) {
+	if !VerifyHashSignature(messageHash, signature, signer.PublicKey) {
 		return nil, fmt.Errorf("signature is invalid")
 	}
 
@@ -93,17 +93,7 @@ func GetOpsHash(userOps []*model.UserOperation, entryPointAddr common.Address, c
 	}
 
 	if count > 1 {
-		// Sort the hashes
-		for i := 0; i < count; i++ {
-			for j := i + 1; j < count; j++ {
-				if hashBigs[i].Cmp(hashBigs[j]) > 0 {
-					hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
-					hashes[i], hashes[j] = hashes[j], hashes[i]
-				}
-			}
-		}
-
-		return getAggHash(hashes)
+		return getAggHash(sortHashes(count, hashBigs, hashes))
 	}
 
 	// Single UserOperation
@@ -112,33 +102,43 @@ func GetOpsHash(userOps []*model.UserOperation, entryPointAddr common.Address, c
 
 // GetXHash computes the hash for single or appending multiple UserOperations' hashes.
 func GetXHash(userOp *model.UserOperation, hashes []common.Hash, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
-	count := len(hashes) + 1
 	hashes = append(hashes, userOp.GetUserOpHash(entryPointAddr, chainIDs[0]))
-	hashBigs := make([]*big.Int, count)
 
+	return GenXHash(hashes)
+}
+
+// GenXHash computes the hash of multiple UserOperations' hashes.
+func GenXHash(hashes []common.Hash) common.Hash {
+	count := len(hashes)
+	hashBigs := make([]*big.Int, count)
 	for i := 0; i < count; i++ {
 		hashBigs[i] = new(big.Int).SetBytes(hashes[i][:])
 	}
 
 	if count > 1 {
-		// Sort the hashes
-		for i := 0; i < count; i++ {
-			for j := i + 1; j < count; j++ {
-				if hashBigs[i].Cmp(hashBigs[j]) > 0 {
-					hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
-					hashes[i], hashes[j] = hashes[j], hashes[i]
-				}
-			}
-		}
-
-		return getAggHash(hashes)
+		// hash the sorted concatenated hashes
+		return getAggHash(sortHashes(count, hashBigs, hashes))
 	}
 
 	// Single UserOperation
 	return hashes[0]
 }
 
-// getAggHash computes the hash of multiple UserOperations' hashes.
+func sortHashes(count int, hashBigs []*big.Int, hashes []common.Hash) []common.Hash {
+	// Sort the hashes
+	for i := 0; i < count; i++ {
+		for j := i + 1; j < count; j++ {
+			if hashBigs[i].Cmp(hashBigs[j]) > 0 {
+				hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
+				hashes[i], hashes[j] = hashes[j], hashes[i]
+			}
+		}
+	}
+
+	return hashes
+}
+
+// getAggHash computes the hash of multiple sorted UserOperations' hashes.
 func getAggHash(hashes []common.Hash) common.Hash {
 	// Concatenate the sorted hashes
 	var concatenatedHashes []byte
@@ -151,8 +151,8 @@ func getAggHash(hashes []common.Hash) common.Hash {
 	return xChainHash
 }
 
-// generateSignature signs the prefixed message hash with the private key.
-func generateSignature(messageHash common.Hash, privateKey *ecdsa.PrivateKey) ([]byte, error) {
+// GenerateSignature signs the prefixed message hash with the private key.
+func GenerateSignature(messageHash common.Hash, privateKey *ecdsa.PrivateKey) ([]byte, error) {
 	prefixedHash := getEtherMsgHash(messageHash)
 
 	signature, err := crypto.Sign(prefixedHash.Bytes(), privateKey)
@@ -197,11 +197,11 @@ func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPoin
 
 	messageHash := GetOpsHash(userOps, entryPointAddr, chainIDs)
 
-	return verifySignature(messageHash, signature, publicKey)
+	return VerifyHashSignature(messageHash, signature, publicKey)
 }
 
-// verifySignature verifies the signature against the message hash and public key.
-func verifySignature(messageHash common.Hash, signature []byte, publicKey *ecdsa.PublicKey) bool {
+// VerifyHashSignature verifies the signature against the message hash and public key.
+func VerifyHashSignature(messageHash common.Hash, signature []byte, publicKey *ecdsa.PublicKey) bool {
 	sigCopy := bytes.Clone(signature)
 	sigCopy[64] -= 27 // Transform V from 27/28 (yellow paper) to 0/1
 
