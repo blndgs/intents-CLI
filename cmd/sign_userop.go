@@ -30,7 +30,7 @@ var SignUserOpCmd = &cobra.Command{
 	Short: "Sign a userOp with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
+		nodeUrls, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 		hashes, err := utils.GetHashes(cmd)
 		if err != nil {
@@ -42,7 +42,7 @@ var SignUserOpCmd = &cobra.Command{
 		fmt.Println("sender address: ", sender)
 
 		// Initialize an Ethereum client and retrieve nonce and chain ID.
-		ethClient := ethclient.NewClient(nodeUrl)
+		ethClient := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 		// get nonce
 		nonce, err := ethClient.GetNonce(sender)
 		if err != nil {

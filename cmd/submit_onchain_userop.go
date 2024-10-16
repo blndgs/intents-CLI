@@ -43,7 +43,7 @@ func SubmitOnChain(userOp *model.UserOperation) {
 	fmt.Println("sender address: ", sender)
 
 	// Initialize Ethereum client and retrieve nonce and chain ID.
-	node := ethclient.NewClient(nodeUrl)
+	node := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 	nonce, err := node.GetNonce(sender)
 	if err != nil {
 		panic(err)

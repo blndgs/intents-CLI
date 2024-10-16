@@ -20,14 +20,14 @@ var HashUserOpCmd = &cobra.Command{
 	Short: "Print the userOp's hash",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodeUrl, _, entrypointAddr, _ := config.ReadConf()
+		nodeUrls, _, entrypointAddr, _ := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 		hashes, err := utils.GetHashes(cmd)
 		if err != nil {
 			panic(err)
 		}
 
-		ethClient := ethclient.NewClient(nodeUrl)
+		ethClient := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 
 		chainID, err := ethClient.EthClient.ChainID(context.Background())
 		if err != nil {
