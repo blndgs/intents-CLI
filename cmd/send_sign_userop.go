@@ -54,8 +54,8 @@ var SendAndSignUserOpCmd = &cobra.Command{
 			panic(err)
 		}
 
-		fmt.Printf("\nchain-id:%s\n", chainID)
-		utils.PrintHash(unsignedUserOp, hashes, entrypointAddr, chainID)
+		fmt.Printf("\nchain-id:%s\n", srcChainID)
+		utils.PrintHash(unsignedUserOp, hashes, entrypointAddr, srcChainID)
 
 		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
 		if err != nil {
