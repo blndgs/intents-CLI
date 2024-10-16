@@ -59,17 +59,22 @@ var SendUserOpCmd = &cobra.Command{
 
 		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
-		sendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
+		verifiedSendUserOp(srcChainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
 		utils.PrintSignature(userOp)
 	},
 }
 
-// sendUserOp verifies the signature of the user operation and then sends it.
-func sendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
+// verifiedSendUserOp verifies the signature of the user operation and then sends it.
+func verifiedSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
 	// verify signature
 	if !userop.VerifySignature(chainID, signer.PublicKey, entryPointAddr, signedUserOp) {
 		panic("Signature is invalid")
 	}
+
+	sendUserOp(bundlerUrl, entryPointAddr, signedUserOp)
+}
+
+func sendUserOp(bundlerUrl string, entryPointAddr common.Address, signedUserOp *model.UserOperation) {
 	// send user ops
 	hashResp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOp)
 	if err != nil {

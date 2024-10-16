@@ -79,10 +79,10 @@ func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.
 		panic(err)
 	}
 
-	fmt.Printf("signed userOp:\n%s\n", signedOps)
+	fmt.Printf("signed userOp:\n%s\n", signedOp)
 
-	// Marshal signedOps into JSON
-	jsonBytes, err := json.Marshal(signedOps)
+	// Marshal signedOp into JSON
+	jsonBytes, err := json.Marshal(signedOp)
 	if err != nil {
 		panic(fmt.Errorf("error marshaling signed operations to JSON: %v", err))
 	}

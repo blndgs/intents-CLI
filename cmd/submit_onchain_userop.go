@@ -65,10 +65,8 @@ func SubmitOnChain(userOp *model.UserOperation, hashes []common.Hash) {
 
 	fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
-	signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
-
 	ctx := context.Background()
-	submit(ctx, node, chainID, entrypointAddr, eoaSigner, unsignedUserOp)
+	submit(ctx, node, srcChainID, entrypointAddr, eoaSigner, unsignedUserOp)
 }
 
 func submit(ctx context.Context, node *ethclient.Client, chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation) {

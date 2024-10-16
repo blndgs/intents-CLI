@@ -14,8 +14,6 @@ import (
 
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/pkg/ethclient"
-	"github.com/blndgs/intents-sdk/pkg/httpclient"
-	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/intents-sdk/utils"
 )
 
@@ -69,24 +67,8 @@ var SendAndSignUserOpCmd = &cobra.Command{
 }
 
 // signAndSendUserOp signs a user operation and then sends it.
-func signAndSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
-	// Sign user operation.
-	signedUserOps, err := userop.Sign(chainID, entryPointAddr, signer, userOp)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("signedUserOps", signedUserOps)
-	// Send user operation.
-	hashResp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("sign and send userOps hashResp: %+v\n", hashResp)
+func signAndSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation, hashes []common.Hash) {
+	signUserOp(chainID, entryPointAddr, signer, userOp, hashes)
 
-	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, hashResp.Solved)
-	if err != nil {
-		fmt.Println("Error getting UserOperation receipt:", err)
-		return
-	}
-	fmt.Println("UserOperation Receipt:", string(receipt))
+	sendUserOp(bundlerUrl, entryPointAddr, userOp) // Send user operation.
 }
