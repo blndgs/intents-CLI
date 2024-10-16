@@ -1,6 +1,7 @@
 package utils
 
 import (
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -10,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/blndgs/intents-sdk/pkg/config"
+	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
@@ -21,6 +24,7 @@ import (
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
 	cmd.Flags().String("h", "", "List of other cross-chain user operations hashes")
+	cmd.Flags().String("c", "", "List of other user operations' Chains")
 
 	if err := cmd.MarkFlagRequired("u"); err != nil {
 		panic(err)
@@ -91,7 +95,41 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 		parsedHashes = append(parsedHashes, hash)
 	}
 
-	return parsedHashes, nil
+	return parsedHashes
+}
+
+type ChainNode struct {
+	chainID *big.Int
+	node    *ethclient.Client
+}
+
+// GetChains parses the chain IDs from the command line flag 'c' and returns a slice of nodes.
+func GetChains(cmd *cobra.Command, rpcURLs config.RpcURLSMap) []ChainNode {
+	chainsStr, _ := cmd.Flags().GetString("c")
+	if chainsStr == "" {
+		return nil // Return nil if the "c" flag is not provided
+	}
+
+	// split by empty space separator
+	chainMonikers := strings.Split(chainsStr, " ")
+	parsedChainNodes := make([]ChainNode, len(chainMonikers))
+	for idx, moniker := range chainMonikers {
+		chain := rpcURLs[moniker]
+		node := ethclient.NewClient(chain)
+
+		chainID, err := node.EthClient.ChainID(context.Background())
+		if err != nil {
+			panic(fmt.Errorf("error getting chain ID: %v, for chain moniker: %s, chain RPC Url: %s", err, moniker, chain))
+		}
+
+		var chainNode ChainNode
+		chainNode.chainID = chainID
+		chainNode.node = node
+
+		parsedChainNodes[idx] = chainNode
+	}
+
+	return parsedChainNodes
 }
 
 // UpdateUserOp sets the nonce value and 4337 default gas limits if they are zero.
