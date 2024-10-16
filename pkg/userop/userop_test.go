@@ -68,7 +68,7 @@ func TestMatchSoliditySignature(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &tc.userOp)
+			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &tc.userOp, nil)
 			require.NoError(t, err)
 			isValid := userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp)
 			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
@@ -136,7 +136,7 @@ func TestSignConventionalUserOps(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.userOp), &userOp)
 			require.NoError(t, err)
 
-			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp, nil)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
@@ -211,7 +211,7 @@ func TestIntentUserOpSign(t *testing.T) {
 			if err != nil {
 				panic(err)
 			}
-			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp, nil)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {

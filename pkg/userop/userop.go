@@ -14,11 +14,11 @@ import (
 )
 
 // Sign signs a single UserOperation with the given private key.
-func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) (*model.UserOperation, error) {
+func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation, hashes []common.Hash) (*model.UserOperation, error) {
 	userOps := []*model.UserOperation{userOp}
 	chainIDs := []*big.Int{chainID}
 
-	signedOps, err := signUserOperations(chainIDs, entryPointAddr, signer, userOps)
+	signedOps, err := signUserOperations(chainIDs, entryPointAddr, signer, userOps, hashes)
 	if err != nil {
 		return nil, err
 	}
@@ -33,19 +33,38 @@ func XSign(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EO
 	if len(userOps) < 2 {
 		return nil, errors.New("at least two UserOperations are required")
 	}
-	return signUserOperations(chainIDs, entryPointAddr, signer, userOps)
+	return signUserOperations(chainIDs, entryPointAddr, signer, userOps, nil)
 }
 
 // signUserOperations is a helper function to sign one or multiple UserOperations.
-func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation) ([]*model.UserOperation, error) {
+func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation, hashes []common.Hash) ([]*model.UserOperation, error) {
 	if len(chainIDs) != len(userOps) {
 		return nil, errors.New("number of chainIDs and userOps must match")
 	}
+	if len(userOps) > 1 && len(hashes) > 0 {
+		return nil, errors.New("hashes must be empty for multiple UserOperations as they are computed by the userOps")
+	}
 
-	messageHash := GetOpsHash(userOps, entryPointAddr, chainIDs)
-	signature, err := generateSignature(messageHash, signer.PrivateKey)
-	if err != nil {
-		return nil, err
+	var (
+		signature   []byte
+		messageHash common.Hash
+		err         error
+	)
+	// no cross-chain hashes provided but 1 or more UserOperations
+	if len(hashes) == 0 {
+		messageHash = GetOpsHash(userOps, entryPointAddr, chainIDs)
+		signature, err = generateSignature(messageHash, signer.PrivateKey)
+		if err != nil {
+			return nil, err
+		}
+
+		// hashes are provided for all but the first UserOperation
+	} else {
+		messageHash = GetXHash(userOps[0], hashes, entryPointAddr, chainIDs)
+		signature, err = generateSignature(messageHash, signer.PrivateKey)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	// Assign the signature to all UserOperations

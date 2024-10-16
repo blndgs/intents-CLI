@@ -20,6 +20,7 @@ func main() {
 	log.SetOutput(os.Stdout)
 
 	// Add commands to the root command
+	rootCmd.AddCommand(cmd.HashUserOpCmd)
 	rootCmd.AddCommand(cmd.SendAndSignUserOpCmd)
 	rootCmd.AddCommand(cmd.SendUserOpCmd)
 	rootCmd.AddCommand(cmd.SignUserOpCmd)

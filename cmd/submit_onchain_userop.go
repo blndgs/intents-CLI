@@ -30,11 +30,12 @@ var OnChainUserOpCmd = &cobra.Command{
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
 		userOp := utils.GetUserOps(cmd)
-		SubmitOnChain(userOp)
+		hashes := utils.GetHashes(cmd)
+		SubmitOnChain(userOp, hashes)
 	},
 }
 
-func SubmitOnChain(userOp *model.UserOperation) {
+func SubmitOnChain(userOp *model.UserOperation, hashes []common.Hash) {
 	// Read configuration and initialize necessary components.
 	nodeUrls, _, entrypointAddr, eoaSigner := config.ReadConf()
 	fmt.Println("submit userOp:", userOp)
@@ -55,7 +56,7 @@ func SubmitOnChain(userOp *model.UserOperation) {
 		panic(err)
 	}
 
-	signUserOp(chainID, entrypointAddr, eoaSigner, unsignedUserOp)
+	signUserOp(srcChainID, entrypointAddr, eoaSigner, unsignedUserOp, hashes)
 
 	calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
 	if err != nil {

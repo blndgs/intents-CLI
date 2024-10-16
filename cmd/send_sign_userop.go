@@ -33,10 +33,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		nodeUrls, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 		fmt.Println("send and sign userOp:", userOp)
-		hashes, err := utils.GetHashes(cmd)
-		if err != nil {
-			panic(err)
-		}
+		hashes := utils.GetHashes(cmd)
 
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)
@@ -65,7 +62,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
 		// Sign and send the user operation.
-		signAndSendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
+		signAndSendUserOp(srcChainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp, hashes)
 		// Print signature
 		utils.PrintSignature(userOp)
 	},

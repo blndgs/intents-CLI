@@ -33,10 +33,7 @@ var SendUserOpCmd = &cobra.Command{
 		nodeUrls, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
 		fmt.Println("send userOp:", userOp)
-		hashes, err := utils.GetHashes(cmd)
-		if err != nil {
-			panic(err)
-		}
+		hashes := utils.GetHashes(cmd)
 
 		sender := userOp.Sender
 		fmt.Println("sender address: ", sender)

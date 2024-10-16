@@ -32,10 +32,7 @@ var SignUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrls, _, entrypointAddr, eoaSigner := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		hashes, err := utils.GetHashes(cmd)
-		if err != nil {
-			panic(err)
-		}
+		hashes := utils.GetHashes(cmd)
 
 		sender := userOp.Sender
 
@@ -68,7 +65,7 @@ var SignUserOpCmd = &cobra.Command{
 		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
 
 		// Sign the user operation and prepare it for sending.
-		signUserOp(chainID, entrypointAddr, eoaSigner, userOp)
+		signUserOp(srcChainID, entrypointAddr, eoaSigner, userOp, hashes)
 		// Print signature
 		utils.PrintSignature(userOp)
 	},
@@ -76,8 +73,8 @@ var SignUserOpCmd = &cobra.Command{
 
 // signUserOp signs a user operation using the provided parameters and
 // prepares it for sending. It utilizes the userop package for signing.
-func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
-	signedOps, err := userop.Sign(chainID, entryPointAddr, signer, signedUserOp)
+func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation, hashes []common.Hash) {
+	signedOp, err := userop.Sign(chainID, entryPointAddr, signer, signedUserOp, hashes)
 	if err != nil {
 		panic(err)
 	}

@@ -22,10 +22,7 @@ var HashUserOpCmd = &cobra.Command{
 		// Read configuration and initialize necessary components.
 		nodeUrls, _, entrypointAddr, _ := config.ReadConf()
 		userOp := utils.GetUserOps(cmd)
-		hashes, err := utils.GetHashes(cmd)
-		if err != nil {
-			panic(err)
-		}
+		hashes := utils.GetHashes(cmd)
 
 		ethClient := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 

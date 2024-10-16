@@ -66,24 +66,24 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 }
 
 // GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
-func GetHashes(cmd *cobra.Command) ([]common.Hash, error) {
+func GetHashes(cmd *cobra.Command) []common.Hash {
 	hashesStr, _ := cmd.Flags().GetString("h")
 	if hashesStr == "" {
-		return nil, nil // Return nil if the "h" flag is not provided
+		return nil // Return nil if the "h" flag is not provided
 	}
 
-	hashes := strings.Split(hashesStr, ",")
+	hashes := strings.Split(hashesStr, " ")
 	var parsedHashes []common.Hash
 
 	for _, hashStr := range hashes {
 		hashStr = strings.TrimPrefix(hashStr, "0x")
 		if len(hashStr) != 64 {
-			return nil, fmt.Errorf("invalid hash length: %s", hashStr)
+			return nil
 		}
 
 		hashBytes, err := hex.DecodeString(hashStr)
 		if err != nil {
-			return nil, fmt.Errorf("invalid hash format: %s", hashStr)
+			return nil
 		}
 
 		var hash common.Hash
