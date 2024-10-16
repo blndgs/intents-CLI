@@ -49,12 +49,12 @@ var SendUserOpCmd = &cobra.Command{
 		}
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-		chainID, err := ethClient.EthClient.ChainID(context.Background())
+		srcChainID, err := ethClient.EthClient.ChainID(context.Background())
 		if err != nil {
 			panic(err)
 		}
 
-		utils.PrintHash(unsignedUserOp, hashes, entrypointAddr, chainID)
+		utils.PrintHash(unsignedUserOp, hashes, entrypointAddr, srcChainID)
 		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
 		if err != nil {
 			panic(errors.Wrap(err, "error preparing userOp calldata"))

@@ -36,7 +36,7 @@ var OnChainUserOpCmd = &cobra.Command{
 
 func SubmitOnChain(userOp *model.UserOperation) {
 	// Read configuration and initialize necessary components.
-	nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
+	nodeUrls, _, entrypointAddr, eoaSigner := config.ReadConf()
 	fmt.Println("submit userOp:", userOp)
 
 	sender := userOp.Sender
@@ -50,7 +50,7 @@ func SubmitOnChain(userOp *model.UserOperation) {
 	}
 	unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-	chainID, err := node.EthClient.ChainID(context.Background())
+	srcChainID, err := node.EthClient.ChainID(context.Background())
 	if err != nil {
 		panic(err)
 	}

@@ -29,12 +29,12 @@ var HashUserOpCmd = &cobra.Command{
 
 		ethClient := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 
-		chainID, err := ethClient.EthClient.ChainID(context.Background())
+		srcChainID, err := ethClient.EthClient.ChainID(context.Background())
 		if err != nil {
 			panic(err)
 		}
 
 		// Print signature
-		utils.PrintHash(userOp, hashes, entrypointAddr, chainID)
+		utils.PrintHash(userOp, hashes, entrypointAddr, srcChainID)
 	},
 }

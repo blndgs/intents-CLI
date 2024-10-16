@@ -43,13 +43,13 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		// Initialize Ethereum client and retrieve nonce and chain ID.
 		srcNode := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 
-		nonce, err := ethClient.GetNonce(sender)
+		nonce, err := srcNode.GetNonce(sender)
 		if err != nil {
 			panic(err)
 		}
 		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-		chainID, err := ethClient.EthClient.ChainID(context.Background())
+		srcChainID, err := srcNode.EthClient.ChainID(context.Background())
 		if err != nil {
 			panic(err)
 		}
