@@ -98,38 +98,53 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 	return parsedHashes
 }
 
-type ChainNode struct {
-	chainID *big.Int
-	node    *ethclient.Client
-}
-
-// GetChains parses the chain IDs from the command line flag 'c' and returns a slice of nodes.
-func GetChains(cmd *cobra.Command, rpcURLs config.RpcURLSMap) []ChainNode {
+// GetChainMonikers parses the network moniker or numeric chain-id value from the command line
+// flag 'c' and returns a slice of chain monikers. The number of chains provided must
+// match the number of userOps and belong to the initialized nodesMap. If a chain ID
+// is provided instead of a moniker, it will be matched against the chain IDs in nodesMap.
+func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int) []string {
 	chainsStr, _ := cmd.Flags().GetString("c")
-	if chainsStr == "" {
-		return nil // Return nil if the "c" flag is not provided
+	if chainsStr == "" && opsCount > 1 {
+		panic("chains flag is required when multiple userOps were provided")
 	}
 
-	// split by empty space separator
-	chainMonikers := strings.Split(chainsStr, " ")
-	parsedChainNodes := make([]ChainNode, len(chainMonikers))
-	for idx, moniker := range chainMonikers {
-		chain := rpcURLs[moniker]
-		node := ethclient.NewClient(chain)
+	chains := strings.Split(chainsStr, " ")
+	if len(chains) > opsCount {
+		panic(fmt.Errorf("number of chains provided is more than the number of user operations"))
+	}
+	if len(chains) > len(nodesMap) {
+		panic(fmt.Errorf("number of chains provided is more than the number of nodes in the configuration map"))
+	}
+	if len(chains) < opsCount-1 && opsCount > 1 {
+		panic(fmt.Errorf("number of chains provided is less than the number of user operations"))
+	}
 
-		chainID, err := node.EthClient.ChainID(context.Background())
-		if err != nil {
-			panic(fmt.Errorf("error getting chain ID: %v, for chain moniker: %s, chain RPC Url: %s", err, moniker, chain))
+	var parsedChains = make([]string, 0, len(chains)+1)
+	// add the default node chain
+	if len(parsedChains) < opsCount {
+		parsedChains = append(parsedChains, config.DefaultRPCURLKey)
+	}
+
+	for _, chain := range chains {
+		if strings.ToLower(chain) == config.DefaultRPCURLKey {
+			panic(fmt.Errorf("chain %s has already been added in the first position", chain))
 		}
-
-		var chainNode ChainNode
-		chainNode.chainID = chainID
-		chainNode.node = node
-
-		parsedChainNodes[idx] = chainNode
+		if _, ok := nodesMap[chain]; ok {
+			parsedChains = append(parsedChains, chain)
+		} else {
+			// Check if the chain is a chain ID
+			for moniker, node := range nodesMap {
+				// Check if the chain ID matches the chain ID of the node
+				if node.ChainID.String() == chain {
+					parsedChains = append(parsedChains, moniker)
+					continue
+				}
+			}
+			panic(fmt.Errorf("chain %s is not found in the configuration map nodes", chain))
+		}
 	}
 
-	return parsedChainNodes
+	return parsedChains
 }
 
 // UpdateUserOp sets the nonce value and 4337 default gas limits if they are zero.
