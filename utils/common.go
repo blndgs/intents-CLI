@@ -1,7 +1,6 @@
 package utils
 
 import (
-	"context"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
@@ -12,13 +11,14 @@ import (
 	"strings"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/spf13/cobra"
 )
+
+type NoncesMap map[string]*big.Int // moniker -> nonce
 
 // AddCommonFlags adds common flags to the provided Cobra command.
 func AddCommonFlags(cmd *cobra.Command) {
