@@ -40,6 +40,8 @@ intents-cli [command] --u ./sample.json
 - `sign`: Sign a userOp.
 - `send`: Submit a userOp to the node's EVM Entrypoint handleOps.
 - `sign-send` : Sign and send a userOp.
+- `hash`: Generate the hash of a userOp.
+- `on-chain`: Submit a userOp to the node's EVM Entrypoint handleOps bypassing the solver.
 
 ### Available Flags
 
