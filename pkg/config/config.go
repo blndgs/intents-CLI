@@ -5,6 +5,7 @@ import (
 	"math/big"
 	"strings"
 
+	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -18,7 +19,12 @@ type GasParams struct {
 	GasPrice *big.Int
 }
 
-type RpcURLSMap map[string]string
+type ChainNode struct {
+	Node    *ethclient.Client
+	ChainID *big.Int
+}
+
+type NodesMap map[string]ChainNode // moniker -> chainID -> node
 
 const ethNodeUrlPrefix = "eth_node_url_"
 
@@ -29,7 +35,7 @@ const DefaultRPCURLKey = "default"
 // ReadConf reads configuration from a .env file and initializes
 // necessary variables like node URLs, signer, bundler URL, and entry point address.
 // It returns these values and logs configuration details.
-func ReadConf() (RpcURLSMap, string, common.Address, *signer.EOA) {
+func ReadConf() (NodesMap, string, common.Address, *signer.EOA) {
 	const signerPrvKey = "SIGNER_PRIVATE_KEY"
 	const bundlerUrl = "BUNDLER_URL"
 	const epAddr = "ENTRYPOINT_ADDR"
@@ -42,7 +48,7 @@ func ReadConf() (RpcURLSMap, string, common.Address, *signer.EOA) {
 	}
 
 	foundDefaultRPCURL := false
-	nodeURLs := make(RpcURLSMap)
+	nodeURLs := make(NodesMap)
 	for _, key := range viper.AllKeys() {
 		// viper.AllKeys() returns all keys in lowercase
 		if strings.HasPrefix(key, ethNodeUrlPrefix) {
@@ -52,11 +58,11 @@ func ReadConf() (RpcURLSMap, string, common.Address, *signer.EOA) {
 				}
 				foundDefaultRPCURL = true
 				// save the default RPC URL with 'default' as the key
-				nodeURLs[DefaultRPCURLKey] = viper.GetString(key)
+				nodeURLs[DefaultRPCURLKey] = initNode(key)
 				continue
 			}
 			moniker := strings.TrimPrefix(key, ethNodeUrlPrefix)
-			nodeURLs[moniker] = viper.GetString(key)
+			nodeURLs[moniker] = initNode(key)
 		}
 	}
 
@@ -81,4 +87,14 @@ func ReadConf() (RpcURLSMap, string, common.Address, *signer.EOA) {
 	}
 
 	return nodeURLs, bundlerURL, entryPointAddr, s
+}
+
+func initNode(key string) ChainNode {
+	node := ethclient.NewClient(viper.GetString(key))
+	chainID, err := node.EthClient.ChainID(nil)
+	if err != nil {
+		panic(fmt.Errorf("error getting chain ID: %w", err))
+	}
+
+	return ChainNode{Node: node, ChainID: chainID}
 }
