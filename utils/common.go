@@ -34,14 +34,15 @@ func AddCommonFlags(cmd *cobra.Command) {
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
 // and returns a UserOperation object. It panics if the JSON string is empty,
 // the file can't be read, or the JSON can't be parsed.
-func GetUserOps(cmd *cobra.Command) *model.UserOperation {
+func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	userOpInput, _ := cmd.Flags().GetString("u")
 
-	var userOpJSON string
 	if userOpInput == "" {
 		panic("user operation JSON is required")
 	}
-	if userOpInput[0] == '{' {
+
+	var userOpJSON string
+	if userOpInput[0] == '{' || userOpInput[0] == '[' {
 		callDataEncoded, err := ProcessCallDataUsingBigInt(userOpInput)
 		if err != nil {
 			panic(fmt.Errorf("error encoding callData: %v", err))
@@ -61,12 +62,22 @@ func GetUserOps(cmd *cobra.Command) *model.UserOperation {
 		panic("invalid user operation input")
 	}
 
-	var userOp model.UserOperation
-	err := json.Unmarshal([]byte(userOpJSON), &userOp)
-	if err != nil {
-		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
+	var userOps []*model.UserOperation
+	if userOpJSON[0] == '[' {
+		err := json.Unmarshal([]byte(userOpJSON), &userOps)
+		if err != nil {
+			panic(fmt.Errorf("error parsing user operations JSON: %v", err))
+		}
+	} else {
+		var userOp model.UserOperation
+		err := json.Unmarshal([]byte(userOpJSON), &userOp)
+		if err != nil {
+			panic(fmt.Errorf("error parsing user operation JSON: %v", err))
+		}
+		userOps = append(userOps, &userOp)
 	}
-	return &userOp
+
+	return userOps
 }
 
 // GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
