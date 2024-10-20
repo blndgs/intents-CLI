@@ -47,7 +47,7 @@ func TestCrossChainECDSASignature(t *testing.T) {
 		}
 	}
 
-	srcIntent := `{"chainId":137, "sender":"0x18Dd70639de2ca9146C32f9c84B90A68bBDaAA96","kind":"swap","hash":"","sellToken":"0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE","buyToken":"0xc2132D05D31c914a87C6611C10748AEb04B58e8F","sellAmount":10,"buyAmount":5,"partiallyFillable":false,"status":"Received","createdAt":0,"expirationAt":0}`
+	srcIntent := `{"fromAsset":{"address":"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","amount":{"value":"DeC2s6dkAAA="},"chainId":{"value":"AAAAAAAAAIk="}},"toAsset":{"address":"0xc2132D05D31c914a87C6611C10748AEb04B58e8F","amount":{"value":"DeC2s6dkAAA="},"chainId":{"value":"AAAAAAAAADg="}}}`
 	destIntent := srcIntent // Same intent for both chains in this example
 
 	sourceUserOp := createUserOp(srcIntent)
@@ -65,7 +65,7 @@ func TestCrossChainECDSASignature(t *testing.T) {
 	require.True(t, isValid, "Signature is invalid for cross-chain UserOperations")
 
 	// Check if the signature matches the one from the Solidity test
-	expectedSignature := "babbe1fb0f5154d9fb263e64d1b0d9a74b184aaaaa8655a3a4fc8344bc4a8580691393eecc7cd518f0f95119c235b11c566941517aa8cc74ddf0add0af1131ae1b"
+	expectedSignature := "21eea4f85e597719d9aaf71aa97048a9b5943f4b43d8b1d505c67f8b01b1acba5567323c8baeb1667e90ba1643b84a494f86d17ea801c8adc14a90871199b2d51c"
 	actualSignature := fmt.Sprintf("%x", signedUserOps[0].Signature)
 	require.Equal(t, expectedSignature, actualSignature, "Generated signature does not match expected signature")
 }
