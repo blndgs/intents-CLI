@@ -38,13 +38,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 
 		for opIdx, op := range userOps {
 			// Retrieve the chain nonces for the sender address.
-			for _, chainMoniker := range chainMonikers {
-				nonce, err := nodes[chainMoniker].Node.EthClient.NonceAt(context.Background(), sender, nil)
-				if err != nil {
-					panic(fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err))
-				}
-				utils.UpdateUserOp(op, new(big.Int).SetUint64(nonce))
-			}
+			updateNonces(sender, op, chainMonikers, nodes)
 
 			utils.PrintHash(op, hashes, entrypointAddr, nodes[chainMonikers[opIdx]].ChainID)
 			calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*op}, eoaSigner.Address)
@@ -59,6 +53,16 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		}
 
 	},
+}
+
+func updateNonces(sender common.Address, op *model.UserOperation, chainMonikers []string, nodes config.NodesMap) {
+	for _, chainMoniker := range chainMonikers {
+		nonce, err := nodes[chainMoniker].Node.EthClient.NonceAt(context.Background(), sender, nil)
+		if err != nil {
+			panic(fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err))
+		}
+		utils.UpdateUserOp(op, new(big.Int).SetUint64(nonce))
+	}
 }
 
 // signAndSendUserOp signs a user operation and then sends it.

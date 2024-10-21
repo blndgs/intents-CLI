@@ -72,37 +72,6 @@ var SignUserOpCmd = &cobra.Command{
 	},
 }
 
-//nodes, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
-//userOps := utils.GetUserOps(cmd)
-//fmt.Println("send and sign userOp:", userOps)
-//hashes := utils.GetHashes(cmd)
-//chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
-//
-//sender := userOps[0].Sender
-//fmt.Println("sender address: ", sender)
-//
-//for opIdx, op := range userOps {
-//// Retrieve the chain nonces for the sender address.
-//for _, chainMoniker := range chainMonikers {
-//nonce, err := nodes[chainMoniker].Node.EthClient.NonceAt(context.Background(), sender, nil)
-//if err != nil {
-//panic(fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err))
-//}
-//utils.UpdateUserOp(op, new(big.Int).SetUint64(nonce))
-//}
-//
-//utils.PrintHash(op, hashes, entrypointAddr, nodes[chainMonikers[opIdx]].ChainID)
-//calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*op}, eoaSigner.Address)
-//if err != nil {
-//panic(errors.Wrap(err, "error preparing userOp calldata"))
-//}
-//fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
-//// Sign and send the user operation.
-//signAndSendUserOp(nodes[chainMonikers[opIdx]].ChainID, bundlerUrl, entrypointAddr, eoaSigner, op, hashes)
-//// Print signature
-//utils.PrintSignature(op)
-//}
-
 // signUserOp signs a user operation using the provided parameters and
 // prepares it for sending. It utilizes the userop package for signing.
 func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation, hashes []common.Hash) {
