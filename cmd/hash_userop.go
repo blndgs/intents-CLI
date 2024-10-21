@@ -1,10 +1,7 @@
 package cmd
 
 import (
-	"context"
-
 	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/spf13/cobra"
 )
@@ -20,18 +17,11 @@ var HashUserOpCmd = &cobra.Command{
 	Short: "Print the userOp's hash",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodeUrls, _, entrypointAddr, _ := config.ReadConf()
-		userOp := utils.GetUserOps(cmd)
+		nodes, _, entrypointAddr, _ := config.ReadConf()
+		userOps := utils.GetUserOps(cmd)
 		hashes := utils.GetHashes(cmd)
 
-		ethClient := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
-
-		srcChainID, err := ethClient.EthClient.ChainID(context.Background())
-		if err != nil {
-			panic(err)
-		}
-
 		// Print signature
-		utils.PrintHash(userOp, hashes, entrypointAddr, srcChainID)
+		utils.PrintHash(userOps[0], hashes, entrypointAddr, nodes[config.DefaultRPCURLKey].ChainID)
 	},
 }

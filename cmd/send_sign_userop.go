@@ -13,7 +13,6 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/utils"
 )
 
@@ -28,41 +27,37 @@ var SendAndSignUserOpCmd = &cobra.Command{
 	Short: "Sign and send a userOp with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodeUrls, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
-		userOp := utils.GetUserOps(cmd)
-		fmt.Println("send and sign userOp:", userOp)
+		nodes, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
+		userOps := utils.GetUserOps(cmd)
+		fmt.Println("send and sign userOp:", userOps)
 		hashes := utils.GetHashes(cmd)
+		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
 
-		sender := userOp.Sender
+		sender := userOps[0].Sender
 		fmt.Println("sender address: ", sender)
-		// Initialize Ethereum client and retrieve nonce and chain ID.
-		srcNode := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
 
-		nonce, err := srcNode.GetNonce(sender)
-		if err != nil {
-			panic(err)
+		for opIdx, op := range userOps {
+			// Retrieve the chain nonces for the sender address.
+			for _, chainMoniker := range chainMonikers {
+				nonce, err := nodes[chainMoniker].Node.EthClient.NonceAt(context.Background(), sender, nil)
+				if err != nil {
+					panic(fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err))
+				}
+				utils.UpdateUserOp(op, new(big.Int).SetUint64(nonce))
+			}
+
+			utils.PrintHash(op, hashes, entrypointAddr, nodes[chainMonikers[opIdx]].ChainID)
+			calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*op}, eoaSigner.Address)
+			if err != nil {
+				panic(errors.Wrap(err, "error preparing userOp calldata"))
+			}
+			fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
+			// Sign and send the user operation.
+			signAndSendUserOp(nodes[chainMonikers[opIdx]].ChainID, bundlerUrl, entrypointAddr, eoaSigner, op, hashes)
+			// Print signature
+			utils.PrintSignature(op)
 		}
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
 
-		srcChainID, err := srcNode.EthClient.ChainID(context.Background())
-		if err != nil {
-			panic(err)
-		}
-
-		fmt.Printf("\nchain-id:%s\n", srcChainID)
-		utils.PrintHash(unsignedUserOp, hashes, entrypointAddr, srcChainID)
-
-		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
-		if err != nil {
-			panic(errors.Wrap(err, "error preparing userOp calldata"))
-		}
-
-		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
-
-		// Sign and send the user operation.
-		signAndSendUserOp(srcChainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp, hashes)
-		// Print signature
-		utils.PrintSignature(userOp)
 	},
 }
 
