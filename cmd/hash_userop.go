@@ -18,7 +18,13 @@ var HashUserOpCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
 		nodes, _, entrypointAddr, _ := config.ReadConf()
+
+		// Single userOp should be returned
 		userOps := utils.GetUserOps(cmd)
+		if len(userOps) != 1 {
+			panic("Only one userOp should be provided")
+		}
+
 		hashes := utils.GetHashes(cmd)
 
 		// Print signature
