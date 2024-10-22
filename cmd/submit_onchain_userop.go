@@ -5,9 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/blndgs/intents-sdk/pkg/abi"
 	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
@@ -29,57 +27,21 @@ var OnChainUserOpCmd = &cobra.Command{
 	Use:   "onchain",
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
-		userOp := utils.GetUserOps(cmd)
+		// Read configuration and initialize necessary components.
+		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf()
+		userOps := utils.GetUserOps(cmd)
 		hashes := utils.GetHashes(cmd)
-		SubmitOnChain(userOp, hashes)
+		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
+
+		processor := NewUserOpProcessor(nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
+
+		for opIdx, op := range userOps {
+			err := processor.ProcessUserOp(opIdx, op, DirectSubmit)
+			if err != nil {
+				panic(err)
+			}
+		}
 	},
-}
-
-func SubmitOnChain(userOp *model.UserOperation, hashes []common.Hash) {
-	// Read configuration and initialize necessary components.
-	nodeUrls, _, entrypointAddr, eoaSigner := config.ReadConf()
-	fmt.Println("submit userOp:", userOp)
-
-	sender := userOp.Sender
-	fmt.Println("sender address: ", sender)
-
-	// Initialize Ethereum client and retrieve nonce and chain ID.
-	node := ethclient.NewClient(nodeUrls[config.DefaultRPCURLKey])
-	nonce, err := node.GetNonce(sender)
-	if err != nil {
-		panic(err)
-	}
-	unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
-
-	srcChainID, err := node.EthClient.ChainID(context.Background())
-	if err != nil {
-		panic(err)
-	}
-
-	signUserOp(srcChainID, entrypointAddr, eoaSigner, unsignedUserOp, hashes)
-
-	calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
-	if err != nil {
-		panic(errors.Wrap(err, "error preparing userOp calldata"))
-	}
-
-	fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
-
-	ctx := context.Background()
-	submit(ctx, node, srcChainID, entrypointAddr, eoaSigner, unsignedUserOp)
-}
-
-func submit(ctx context.Context, node *ethclient.Client, chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation) {
-	gasParams, err := getGasParams(ctx, node.EthClient)
-	if err != nil {
-		panic(err)
-	}
-
-	opts := createTransactionOpts(node.EthClient, chainID, entrypointAddr, eoaSigner, signedUserOp, gasParams)
-
-	if err := executeUserOperation(opts); err != nil {
-		panic(err)
-	}
 }
 
 func getGasParams(ctx context.Context, rpc *geth.Client) (config.GasParams, error) {

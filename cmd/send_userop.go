@@ -25,7 +25,7 @@ var SendUserOpCmd = &cobra.Command{
 		processor := NewUserOpProcessor(nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 
 		for opIdx, op := range userOps {
-			err := processor.ProcessUserOp(opIdx, op, true) // 'true' indicates sending the userOp
+			err := processor.ProcessUserOp(opIdx, op, BundlerSubmit)
 			if err != nil {
 				panic(err)
 			}
