@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"strings"
@@ -82,8 +83,8 @@ func ReadConf() (NodesMap, string, common.Address, *signer.EOA) {
 	fmt.Printf("Public key: %s\n", hexutil.Encode(crypto.FromECDSAPub(s.PublicKey))[4:])
 	fmt.Printf("Address: %s\n", s.Address)
 	fmt.Printf("Entrypoint Address: %s\n", entryPointAddr)
-	for moniker, url := range nodeURLs {
-		fmt.Printf("Node URL for %s: %s\n", moniker, url)
+	for moniker := range nodeURLs {
+		fmt.Printf("Node URL for %s\n", moniker)
 	}
 
 	return nodeURLs, bundlerURL, entryPointAddr, s
@@ -91,7 +92,7 @@ func ReadConf() (NodesMap, string, common.Address, *signer.EOA) {
 
 func initNode(key string) ChainNode {
 	node := ethclient.NewClient(viper.GetString(key))
-	chainID, err := node.EthClient.ChainID(nil)
+	chainID, err := node.EthClient.ChainID(context.Background())
 	if err != nil {
 		panic(fmt.Errorf("error getting chain ID: %w", err))
 	}
