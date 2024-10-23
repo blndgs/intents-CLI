@@ -10,6 +10,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/spf13/viper"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
@@ -21,8 +22,10 @@ type GasParams struct {
 }
 
 type ChainNode struct {
-	Node    *ethclient.Client
-	ChainID *big.Int
+	Node      *ethclient.Client
+	RPCClient *rpc.Client
+	ChainID   *big.Int
+	URLStr    string
 }
 
 type NodesMap map[string]ChainNode // moniker -> chainID -> node
@@ -84,18 +87,24 @@ func ReadConf() (NodesMap, string, common.Address, *signer.EOA) {
 	fmt.Printf("Address: %s\n", s.Address)
 	fmt.Printf("Entrypoint Address: %s\n", entryPointAddr)
 	for moniker := range nodeURLs {
-		fmt.Printf("Node URL for %s\n", moniker)
+		fmt.Printf("Node moniker: %s url: %s\n", moniker, nodeURLs[moniker].URLStr)
 	}
 
 	return nodeURLs, bundlerURL, entryPointAddr, s
 }
 
 func initNode(key string) ChainNode {
-	node := ethclient.NewClient(viper.GetString(key))
+	urlString := viper.GetString(key)
+	node := ethclient.NewClient(urlString)
 	chainID, err := node.EthClient.ChainID(context.Background())
 	if err != nil {
-		panic(fmt.Errorf("error getting chain ID: %w", err))
+		panic(fmt.Errorf("failed getting chain ID: %w", err))
 	}
 
-	return ChainNode{Node: node, ChainID: chainID}
+	rpcClient, err := rpc.Dial(urlString)
+	if err != nil {
+		panic(fmt.Errorf("failed dialing the RPC client: %w", err))
+	}
+
+	return ChainNode{URLStr: urlString, RPCClient: rpcClient, Node: node, ChainID: chainID}
 }
