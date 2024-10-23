@@ -114,9 +114,13 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 // match the number of userOps and belong to the initialized nodesMap. If a chain ID
 // is provided instead of a moniker, it will be matched against the chain IDs in nodesMap.
 func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int) []string {
+	var parsedChains = []string{config.DefaultRPCURLKey}
 	chainsStr, _ := cmd.Flags().GetString("c")
 	if chainsStr == "" && opsCount > 1 {
 		panic("chains flag is required when multiple userOps were provided")
+	}
+	if chainsStr == "" {
+		return parsedChains
 	}
 
 	chains := strings.Split(chainsStr, " ")
@@ -128,12 +132,6 @@ func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int
 	}
 	if len(chains) < opsCount-1 && opsCount > 1 {
 		panic(fmt.Errorf("number of chains provided is less than the number of user operations"))
-	}
-
-	var parsedChains = make([]string, 0, len(chains)+1)
-	// add the default node chain
-	if len(parsedChains) < opsCount {
-		parsedChains = append(parsedChains, config.DefaultRPCURLKey)
 	}
 
 	for _, chain := range chains {
