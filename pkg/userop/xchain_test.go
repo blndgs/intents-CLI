@@ -129,3 +129,54 @@ func createUserOps(t *testing.T) (*signer.EOA, common.Address, *big.Int, *big.In
 	destUserOp := createUserOp(destIntent)
 	return signer, entryPointAddr, sourceChainID, destChainID, sourceUserOp, destUserOp
 }
+
+func TestConfirmXHash(t *testing.T) {
+	privateKey, err := crypto.HexToECDSA("e8776ff1bf88707b464bda52319a747a71c41a137277161dcabb9f821d6c0bd7")
+	require.NoError(t, err)
+
+	publicKey := privateKey.Public().(*ecdsa.PublicKey)
+	Account := &signer.EOA{
+		PrivateKey: privateKey,
+		PublicKey:  publicKey,
+	}
+	println(Account.Address.String())
+
+	entryPointAddr := common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789")
+	sourceChainID := big.NewInt(1)
+	destChainID := big.NewInt(56)
+
+	op := &model.UserOperation{
+		Sender:               common.HexToAddress("0x1234567890123456789012345678901234567890"),
+		Nonce:                big.NewInt(1),
+		InitCode:             []byte{},
+		CallData:             big.NewInt(0x1234).Bytes(),
+		CallGasLimit:         big.NewInt(1000000),
+		VerificationGasLimit: big.NewInt(1000000),
+		PreVerificationGas:   big.NewInt(1000000),
+		MaxFeePerGas:         big.NewInt(1000000000), // 20 gwei
+		MaxPriorityFeePerGas: big.NewInt(1000000000), // 1 gwei
+		PaymasterAndData:     []byte{},
+		Signature:            []byte{},
+	}
+
+	op2 := &model.UserOperation{
+		Sender:               common.HexToAddress("0x0987654321098765432109876543210987654321"),
+		Nonce:                big.NewInt(1),
+		InitCode:             []byte{},
+		CallData:             big.NewInt(0x1234).Bytes(),
+		CallGasLimit:         big.NewInt(1000000),
+		VerificationGasLimit: big.NewInt(1000000),
+		PreVerificationGas:   big.NewInt(1000000),
+		MaxFeePerGas:         big.NewInt(1000000000), // 20 gwei
+		MaxPriorityFeePerGas: big.NewInt(1000000000), // 1 gwei
+		PaymasterAndData:     []byte{},
+		Signature:            []byte{},
+	}
+
+	xhash := userop.GetXHash(op,
+		[]common.Hash{op2.GetUserOpHash(entryPointAddr, new(big.Int).SetInt64(56))},
+		entryPointAddr,
+		[]*big.Int{sourceChainID, destChainID})
+	fmt.Printf("xhash: %s\n", xhash.String())
+	require.Equal(t, "0xd9838e154a554803476cd7fdc53c9837e3e43e466cc13ae55848885901ab4150", xhash.String())
+}
