@@ -2,14 +2,18 @@ package cmd
 
 import (
 	"context"
+	"encoding/hex"
 	"fmt"
 	"math/big"
+	"strings"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/common/hexutil"
 	geth "github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 	"github.com/stackup-wallet/stackup-bundler/pkg/entrypoint/transaction"
@@ -87,6 +91,33 @@ func createTransactionOpts(rpcClient *geth.Client, chainID *big.Int, entrypointA
 func executeUserOperation(opts transaction.Opts) error {
 	tx, err := transaction.HandleOps(&opts)
 	if err != nil {
+		// Try to cast to DataError interface to extract error data
+		var dataErr rpc.DataError
+		if errors.As(err, &dataErr) {
+			errData := dataErr.ErrorData()
+			// Determine the type of errData
+			switch data := errData.(type) {
+			case string:
+				dataBytes, err := hex.DecodeString(strings.TrimPrefix(data, "0x"))
+				if err != nil {
+					return errors.Wrap(err, "failed to decode error data")
+				}
+				if epErr, decodeErr := DecodeEntryPointError(dataBytes); decodeErr == nil {
+					return errors.Wrap(epErr, "EntryPoint error")
+				}
+			case []byte:
+				if epErr, decodeErr := DecodeEntryPointError(data); decodeErr == nil {
+					return errors.Wrap(epErr, "EntryPoint error")
+				}
+			case hexutil.Bytes:
+				if epErr, decodeErr := DecodeEntryPointError(data); decodeErr == nil {
+					return errors.Wrap(epErr, "EntryPoint error")
+				}
+			default:
+				fmt.Printf("Unknown ErrorData type: %T\n", data)
+			}
+		}
+		// If all else fails, return the original error
 		return errors.Wrap(err, "failed to submit user operation on-chain")
 	}
 
