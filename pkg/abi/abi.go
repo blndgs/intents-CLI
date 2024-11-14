@@ -89,13 +89,13 @@ const handleOpABI = `[
   }
 ]`
 
-func PrepareHandleOpCalldata(ops []model.UserOperation, beneficiary common.Address) (string, error) {
+func PrepareHandleOpCalldata(op model.UserOperation, beneficiary common.Address) (string, error) {
 	parsedABI, err := abi.JSON(strings.NewReader(handleOpABI))
 	if err != nil {
 		return "", fmt.Errorf("failed to read abi json: %s", err)
 	}
 
-	calldata, err := parsedABI.Pack("handleOps", ops, beneficiary)
+	calldata, err := parsedABI.Pack("handleOps", []model.UserOperation{op}, beneficiary)
 	if err != nil {
 		return "", fmt.Errorf("failed to pack data: %s", err)
 	}

@@ -31,7 +31,7 @@ func TestPrepareHandleOpCalldata(t *testing.T) {
 	}
 	beneficiary := common.HexToAddress("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd")
 	// Call the function
-	calldata, err := abi.PrepareHandleOpCalldata(ops, beneficiary)
+	calldata, err := abi.PrepareHandleOpCalldata(ops[0], beneficiary)
 	// Assertions
 	require.NoError(t, err)
 	require.NotEmpty(t, calldata)
