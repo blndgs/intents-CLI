@@ -206,23 +206,12 @@ func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
 
 	if callData, ok := data["callData"].(string); ok && callData != "" && callData != "{}" && callData != "0x" {
 		if !isValidHex(callData) {
-			var callDataMap map[string]interface{}
-			err := json.Unmarshal([]byte(callData), &callDataMap)
+			modifiedCallData, err := ConvJSONNum2ProtoValues(callData)
 			if err != nil {
 				return "", err
 			}
 
-			err = convertToBigInt(callDataMap)
-			if err != nil {
-				return "", err
-			}
-
-			modifiedCallData, err := json.Marshal(callDataMap)
-			if err != nil {
-				return "", err
-			}
-
-			data["callData"] = string(modifiedCallData)
+			data["callData"] = modifiedCallData
 		}
 	}
 
