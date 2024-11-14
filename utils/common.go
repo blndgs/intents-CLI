@@ -234,13 +234,17 @@ func PrintSignature(userOp *model.UserOperation) {
 }
 
 // PrintHash prints the userOp hash value.
-func PrintHash(userOp *model.UserOperation, hashes []common.Hash, entrypoint common.Address, chainID *big.Int) {
-	if len(hashes) > 0 {
-		// Print the hash value of the userOp and the list of other cross-chain user operations hashes
-		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetXHash(userOp, hashes, entrypoint, []*big.Int{chainID}).String())
+func PrintHash(userOps []*model.UserOperation, hashes []common.Hash, entrypoint common.Address, chainIDs []*big.Int) {
+	if len(hashes) > 0 && len(userOps) == 1 {
+		// Print the x-chain hash value of the provided userOp and the list of other cross-chain user operations hashes
+		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetXHash(userOps[0], hashes, entrypoint, chainIDs))
+	} else if len(hashes) == 0 && len(userOps) == 1 {
+		// Print the single userOp Hash
+		// or
+		// Print the multiple userOps x-chain Hash
+		fmt.Printf("\nUserOp(s) Hash value:\n%s\n", userop.GetOpsHash(userOps, entrypoint, chainIDs))
 	} else {
-		// Print the hash value of the userOp
-		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetOpsHash([]*model.UserOperation{userOp}, entrypoint, []*big.Int{chainID}).String())
+		panic("invalid userOp and hashes combination")
 	}
 }
 

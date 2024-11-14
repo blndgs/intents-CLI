@@ -1,6 +1,8 @@
 package cmd
 
 import (
+	"math/big"
+
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/spf13/cobra"
@@ -22,12 +24,11 @@ var HashUserOpCmd = &cobra.Command{
 		// Single userOp should be returned
 		userOps := utils.GetUserOps(cmd)
 		if len(userOps) != 1 {
-			panic("Only one userOp should be provided")
+			panic("Only a single userOp is supported")
 		}
 
 		hashes := utils.GetHashes(cmd)
 
-		// Print signature
-		utils.PrintHash(userOps[0], hashes, entrypointAddr, nodes[config.DefaultRPCURLKey].ChainID)
+		utils.PrintHash(userOps, hashes, entrypointAddr, []*big.Int{nodes[config.DefaultRPCURLKey].ChainID})
 	},
 }
