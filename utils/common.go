@@ -109,7 +109,7 @@ func processCallDataFields(v interface{}) {
 		for key, val := range vv {
 			if key == "callData" {
 				if callDataStr, ok := val.(string); ok && callDataStr != "" && callDataStr != "{}" && callDataStr != "0x" {
-					if !isValidHex(callDataStr) {
+					if !IsValidHex(callDataStr) {
 						// Process callDataStr using ConvJSONNum2ProtoValues
 						modifiedCallData, err := ConvJSONNum2ProtoValues(callDataStr)
 						if err == nil {

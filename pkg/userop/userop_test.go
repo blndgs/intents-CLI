@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
 	"github.com/blndgs/intents-sdk/utils"
@@ -163,18 +164,18 @@ func TestIntentUserOpSign(t *testing.T) {
 			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
 			signer:         validPrivateKey(),
 			userOp: `{
-			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
-			  "nonce":"0xf",
-			  "initCode":"0x",
-			  "callData":"{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}",
-			  "callGasLimit":"0xc3500",
-			  "verificationGasLimit":"0x996a0",
-			  "preVerificationGas":"0x99000",
-			  "maxFeePerGas":"0x0",
-			  "maxPriorityFeePerGas":"0x0",
-			  "paymasterAndData":"0x",
-			  "signature":"0x"
-			}`,
+              "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+              "nonce":"0xf",
+              "initCode":"0x",
+              "callData":"{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}",
+              "callGasLimit":"0xc3500",
+              "verificationGasLimit":"0x996a0",
+              "preVerificationGas":"0x99000",
+              "maxFeePerGas":"0x0",
+              "maxPriorityFeePerGas":"0x0",
+              "paymasterAndData":"0x",
+              "signature":"0x"
+            }`,
 			wantErr: false,
 		},
 		{
@@ -183,34 +184,58 @@ func TestIntentUserOpSign(t *testing.T) {
 			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
 			signer:         validPrivateKey(),
 			userOp: `{
-			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
-			  "nonce":"0xf",
-			  "initCode":"0x",
-			  "callData":"{\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}}}",
-			  "callGasLimit":"0xc3500",
-			  "verificationGasLimit":"0x996a0",
-			  "preVerificationGas":"0x99000",
-			  "maxFeePerGas":"0x0",
-			  "maxPriorityFeePerGas":"0x0",
-			  "paymasterAndData":"0x",
-			  "signature":"0x"
-			}`,
+              "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+              "nonce":"0xf",
+              "initCode":"0x",
+              "callData":"{\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}}}",
+              "callGasLimit":"0xc3500",
+              "verificationGasLimit":"0x996a0",
+              "preVerificationGas":"0x99000",
+              "maxFeePerGas":"0x0",
+              "maxPriorityFeePerGas":"0x0",
+              "paymasterAndData":"0x",
+              "signature":"0x"
+            }`,
 			wantErr: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			callDataEncoded, err := utils.ProcessCallDataUsingBigInt(tc.userOp)
+			// Parse the userOp JSON string into a map
+			var userOpMap map[string]interface{}
+			dec := json.NewDecoder(strings.NewReader(tc.userOp))
+			dec.UseNumber()
+			err := dec.Decode(&userOpMap)
 			if err != nil {
-				panic(fmt.Errorf("error encoding callData: %v", err))
+				panic(fmt.Errorf("error parsing user operation JSON: %v", err))
 			}
 
+			// Process the callData field
+			if callData, ok := userOpMap["callData"].(string); ok && callData != "" && callData != "{}" && callData != "0x" {
+				if !utils.IsValidHex(callData) {
+					// Process callData using ConvJSONNum2ProtoValues
+					modifiedCallData, err := utils.ConvJSONNum2ProtoValues(callData)
+					if err != nil {
+						panic(fmt.Errorf("error processing callData: %v", err))
+					}
+					userOpMap["callData"] = modifiedCallData
+				}
+			}
+
+			// Marshal the modified userOpMap back to JSON
+			modifiedUserOpJSON, err := json.Marshal(userOpMap)
+			if err != nil {
+				panic(fmt.Errorf("error marshaling modified user operation JSON: %v", err))
+			}
+
+			// Unmarshal into userOp struct
 			var userOp model.UserOperation
-			err = json.Unmarshal([]byte(callDataEncoded), &userOp)
+			err = json.Unmarshal(modifiedUserOpJSON, &userOp)
 			if err != nil {
 				panic(err)
 			}
+
 			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp, nil)
 			if tc.wantErr {
 				require.Error(t, err)
