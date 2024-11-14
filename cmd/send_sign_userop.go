@@ -22,14 +22,11 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		hashes := utils.GetHashes(cmd)
 		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
 
-		processor := NewUserOpProcessor(nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
+		processor := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 
-		for opIdx, op := range userOps {
-			op.Signature = nil // signal to sign
-			err := processor.ProcessUserOp(opIdx, op, BundlerSubmit)
-			if err != nil {
-				panic(err)
-			}
+		err := processor.ProcessUserOps(userOps, BundlerSubmit)
+		if err != nil {
+			panic(err)
 		}
 	},
 }

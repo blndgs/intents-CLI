@@ -37,13 +37,11 @@ var OnChainUserOpCmd = &cobra.Command{
 		hashes := utils.GetHashes(cmd)
 		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
 
-		processor := NewUserOpProcessor(nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
+		processor := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 
-		for opIdx, op := range userOps {
-			err := processor.ProcessUserOp(opIdx, op, DirectSubmit)
-			if err != nil {
-				panic(err)
-			}
+		err := processor.ProcessUserOps(userOps, DirectSubmit)
+		if err != nil {
+			panic(err)
 		}
 	},
 }
