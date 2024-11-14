@@ -238,13 +238,13 @@ func PrintHash(userOps []*model.UserOperation, hashes []common.Hash, entrypoint 
 	if len(hashes) > 0 && len(userOps) == 1 {
 		// Print the x-chain hash value of the provided userOp and the list of other cross-chain user operations hashes
 		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetXHash(userOps[0], hashes, entrypoint, chainIDs))
-	} else if len(hashes) == 0 && len(userOps) == 1 {
+	} else if len(hashes) == 0 {
 		// Print the single userOp Hash
 		// or
 		// Print the multiple userOps x-chain Hash
 		fmt.Printf("\nUserOp(s) Hash value:\n%s\n", userop.GetOpsHash(userOps, entrypoint, chainIDs))
 	} else {
-		panic("invalid userOp and hashes combination")
+		panic(fmt.Errorf("invalid userOp and hashes combination, length of hashes %d, userOps %d", len(hashes), len(userOps)))
 	}
 }
 
