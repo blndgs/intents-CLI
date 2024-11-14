@@ -20,6 +20,11 @@ import (
 
 type NoncesMap map[string]*big.Int // moniker -> nonce
 
+var (
+	ErrInvalidJSONFormat   = fmt.Errorf("invalid JSON format")
+	ErrInvalidUserOpFormat = fmt.Errorf("invalid userOp format")
+)
+
 // AddCommonFlags adds common flags to the provided Cobra command.
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
@@ -32,8 +37,8 @@ func AddCommonFlags(cmd *cobra.Command) {
 }
 
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
-// and returns a UserOperation object. It panics if the JSON string is empty,
-// the file can't be read, or the JSON can't be parsed.
+// and returns a slice of UserOperation objects. It processes the callData fields
+// before unmarshaling to ensure proper Protobuf formatting.
 func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	userOpInput, _ := cmd.Flags().GetString("u")
 
@@ -42,33 +47,51 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	}
 
 	var userOpJSON string
-	if userOpInput[0] == '{' || userOpInput[0] == '[' {
-		callDataEncoded, err := ProcessCallDataUsingBigInt(userOpInput)
-		if err != nil {
-			panic(fmt.Errorf("error encoding callData: %v", err))
-		}
-		userOpJSON = callDataEncoded
+	if strings.HasPrefix(userOpInput, "{") || strings.HasPrefix(userOpInput, "[") {
+		userOpJSON = userOpInput
 	} else if fileExists(userOpInput) {
 		fileContent, err := os.ReadFile(userOpInput)
 		if err != nil {
 			panic(fmt.Errorf("error reading user operation file: %v", err))
 		}
-		callDataEncoded, err := ProcessCallDataUsingBigInt(string(fileContent))
-		if err != nil {
-			panic(fmt.Errorf("error encoding callData: %v", err))
-		}
-		userOpJSON = callDataEncoded
+		userOpJSON = string(fileContent)
 	} else {
 		panic("invalid user operation input")
 	}
 
+	// Unmarshal the JSON into an interface{} to process callData fields
+	var data interface{}
+	dec := json.NewDecoder(strings.NewReader(userOpJSON))
+	dec.UseNumber()
+	if err := dec.Decode(&data); err != nil {
+		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
+	}
+
+	// Process callData fields in the parsed data
+	processCallDataFields(data)
+
+	// Marshal the modified data back into JSON
+	modifiedJSONBytes, err := json.Marshal(data)
+	if err != nil {
+		panic(fmt.Errorf("error marshaling modified user operation JSON: %v", err))
+	}
+	modifiedJSON := string(modifiedJSONBytes)
+
+	// we can unmarshal now into model.UserOperation structs
+	return unMarshalOps(modifiedJSON)
+}
+
+func unMarshalOps(userOpJSON string) []*model.UserOperation {
 	var userOps []*model.UserOperation
-	if userOpJSON[0] == '[' {
+	// Determine if the input is a single userOp or an array of userOps
+	if strings.HasPrefix(userOpJSON, "[") {
+		// Input is an array of userOps
 		err := json.Unmarshal([]byte(userOpJSON), &userOps)
 		if err != nil {
 			panic(fmt.Errorf("error parsing user operations JSON: %v", err))
 		}
 	} else {
+		// Input is a single userOp
 		var userOp model.UserOperation
 		err := json.Unmarshal([]byte(userOpJSON), &userOp)
 		if err != nil {
@@ -76,8 +99,38 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 		}
 		userOps = append(userOps, &userOp)
 	}
-
 	return userOps
+}
+
+// processCallDataFields recursively processes the parsed JSON data to find and modify 'callData' fields.
+func processCallDataFields(v interface{}) {
+	switch vv := v.(type) {
+	case map[string]interface{}:
+		for key, val := range vv {
+			if key == "callData" {
+				if callDataStr, ok := val.(string); ok && callDataStr != "" && callDataStr != "{}" && callDataStr != "0x" {
+					if !isValidHex(callDataStr) {
+						// Process callDataStr using ConvJSONNum2ProtoValues
+						modifiedCallData, err := ConvJSONNum2ProtoValues(callDataStr)
+						if err == nil {
+							vv[key] = modifiedCallData
+						} else {
+							panic(fmt.Errorf("error processing callData: %v", err))
+						}
+					}
+				} else if val == "{}" || val == "" {
+					vv[key] = "0x"
+				}
+			} else {
+				// Recursively process nested structures
+				processCallDataFields(val)
+			}
+		}
+	case []interface{}:
+		for _, item := range vv {
+			processCallDataFields(item)
+		}
+	}
 }
 
 // GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
@@ -191,51 +244,10 @@ func PrintHash(userOp *model.UserOperation, hashes []common.Hash, entrypoint com
 	}
 }
 
-// ProcessCallDataUsingBigInt convert the int to ProtoBigInt.
-func ProcessCallDataUsingBigInt(jsonData string) (string, error) {
-	// Use regex to trim whitespace before or after " quote characters
-	re := regexp.MustCompile(`\s*"\s*`)
-	jsonData = re.ReplaceAllStringFunc(jsonData, func(match string) string {
-		return `"`
-	})
-	var data map[string]interface{}
-	err := json.Unmarshal([]byte(jsonData), &data)
-	if err != nil {
-		return "", err
-	}
-
-	if callData, ok := data["callData"].(string); ok && callData != "" && callData != "{}" && callData != "0x" {
-		if !isValidHex(callData) {
-			modifiedCallData, err := ConvJSONNum2ProtoValues(callData)
-			if err != nil {
-				return "", err
-			}
-
-			data["callData"] = modifiedCallData
-		}
-	}
-
-	// If callData is empty, set it to valid 0 hex value "0x"
-	if data["callData"] == "{}" || data["callData"] == "" {
-		data["callData"] = "0x"
-	}
-
-	encodedBytes, err := json.Marshal(data)
-	if err != nil {
-		return "", err
-	}
-
-	return string(encodedBytes), nil
-}
-
-func isValidHex(s string) bool {
-	if !strings.HasPrefix(s, "0x") {
-		return false
-	}
-
-	hexPart := s[2:]
-	match, _ := regexp.MatchString("^[0-9a-fA-F]+$", hexPart)
-	return match
+// IsValidHex checks if a string is a valid hexadecimal representation.
+func IsValidHex(s string) bool {
+	re := regexp.MustCompile(`^0x[0-9a-fA-F]*$`)
+	return re.MatchString(s)
 }
 
 // ConvJSONNum2ProtoValues converts numeric values in a JSON string to base64 encoded BigInt representations.
@@ -324,7 +336,7 @@ func convertNumberToBase64(numStr string) string {
 }
 
 // fileExists checks if a file exists at the given path.
-func fileExists(path string) bool {
-	_, err := os.Stat(path)
-	return !os.IsNotExist(err)
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	return err == nil && !info.IsDir()
 }
