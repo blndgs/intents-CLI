@@ -1,13 +1,13 @@
 package utils
 
 import (
+	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math/big"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
@@ -249,38 +249,89 @@ func isValidHex(s string) bool {
 	return match
 }
 
-// convertToBigInt recursively converts numeric strings within a map or slice to big.Int.
-func convertToBigInt(data interface{}) error {
-	switch val := data.(type) {
+// ConvJSONNum2ProtoValues converts numeric values in a JSON string to base64 encoded BigInt representations.
+// It specifically looks for fields named "value" and converts their numeric contents.
+//
+// Parameters:
+//   - jsonStr: A valid JSON string containing numeric values to be converted
+//
+// Returns:
+//   - string: The modified JSON with converted values
+//   - error: Any error encountered during processing
+func ConvJSONNum2ProtoValues(jsonStr string) (string, error) {
+	var data interface{}
+
+	// Create a decoder that preserves number precision
+	dec := json.NewDecoder(strings.NewReader(jsonStr))
+	dec.UseNumber()
+
+	// Decode the JSON string
+	if err := dec.Decode(&data); err != nil {
+		return "", err
+	}
+
+	// Process all values recursively
+	processMapValues(data)
+
+	// Marshal the processed data back to JSON
+	outputBytes, err := json.Marshal(data)
+	if err != nil {
+		return "", err
+	}
+
+	return string(outputBytes), nil
+}
+
+// processMapValues recursively processes a decoded JSON structure, converting numeric "value" fields
+// to their base64 encoded BigInt representation.
+//
+// Parameters:
+//   - v: interface{} representing a JSON structure (can be map, slice, or primitive)
+func processMapValues(v interface{}) {
+	switch vv := v.(type) {
 	case map[string]interface{}:
-		for k, v := range val {
-			if str, ok := v.(string); ok && isNumericString(str) {
-				if num, err := strconv.ParseInt(str, 10, 64); err == nil {
-					bigInt := big.NewInt(num)
-					protoBigInt, err := model.FromBigInt(bigInt)
-					if err != nil {
-						return err
+		// Process each key-value pair in the map
+		for key, val := range vv {
+			if key == "value" {
+				// Convert numeric values when the key is "value"
+				switch num := val.(type) {
+				case json.Number:
+					vv[key] = convertNumberToBase64(num.String())
+				case string:
+					// Try to parse the string as a number
+					if _, ok := new(big.Int).SetString(num, 10); ok {
+						vv[key] = convertNumberToBase64(num)
 					}
-					val[k] = protoBigInt.Value
 				}
-			} else if err := convertToBigInt(v); err != nil {
-				return err
+			} else {
+				// Recursively process nested structures
+				processMapValues(val)
 			}
 		}
 	case []interface{}:
-		for _, item := range val {
-			if err := convertToBigInt(item); err != nil {
-				return err
-			}
+		// Process each item in the array
+		for _, item := range vv {
+			processMapValues(item)
 		}
 	}
-	return nil
 }
 
-// isNumericString checks if a given string represents a numeric value.
-func isNumericString(s string) bool {
-	_, err := strconv.Atoi(s)
-	return err == nil
+// convertNumberToBase64 converts a numeric string to its base64 encoded BigInt representation.
+//
+// Parameters:
+//   - numStr: string representing a numeric value
+//
+// Returns:
+//   - string: base64 encoded representation of the number
+func convertNumberToBase64(numStr string) string {
+	// Convert string number to BigInt
+	bigInt := new(big.Int)
+	bigInt.SetString(numStr, 10)
+
+	// Convert BigInt to bytes and then to base64
+	bytes := bigInt.Bytes()
+	base64Value := base64.StdEncoding.EncodeToString(bytes)
+	return base64Value
 }
 
 // fileExists checks if a file exists at the given path.
