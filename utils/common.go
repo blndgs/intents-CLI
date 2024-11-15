@@ -228,6 +228,16 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperat
 	return userOp
 }
 
+func PrintSignedOpJSON(userOp *model.UserOperation) {
+	jsonBytes, err := json.Marshal(userOp)
+	if err != nil {
+		panic(fmt.Errorf("failed marshaling signed operations to JSON: %w", err))
+	}
+
+	// Print signed Op JSON
+	fmt.Println("Signed UserOp in JSON:", string(jsonBytes))
+}
+
 // PrintSignature prints the signature + hex encoded intent JSON (calldata).
 func PrintSignature(userOp *model.UserOperation) {
 	fmt.Printf("\nSignature value after solution:\n%s\n",

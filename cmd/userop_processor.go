@@ -91,6 +91,9 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
 		p.signUserOps(chainIDs, userOps)
+	} else {
+		// Print JSON for verified userOp signature
+		utils.PrintSignedOpJSON(userOps[0])
 	}
 
 	switch submissionAction {
@@ -129,13 +132,7 @@ func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.User
 		fmt.Printf("Signed userOp:\n%s\n", userOps[0])
 
 		// Marshal signedOp into JSON
-		jsonBytes, err := json.Marshal(userOps[0])
-		if err != nil {
-			panic(fmt.Errorf("failed marshaling signed operations to JSON: %w", err))
-		}
-
-		// Print JSON string
-		fmt.Println("Signed UserOp in JSON:", string(jsonBytes))
+		utils.PrintSignedOpJSON(userOps[0])
 	} else {
 		userOps, err = userop.XSign(chainIDs, p.EntrypointAddr, p.Signer, userOps)
 		if err != nil {
@@ -144,14 +141,7 @@ func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.User
 		for i, op := range userOps {
 			fmt.Printf("Signed userOp %d:\n%s\n", i, op)
 
-			// Marshal signedOp into JSON
-			jsonBytes, err := json.Marshal(userOps[i])
-			if err != nil {
-				panic(fmt.Errorf("failed marshaling signed operation %d to JSON: %w", i, err))
-			}
-
-			// Print JSON string
-			fmt.Printf("Signed UserOp %d in JSON: %s\n", i, string(jsonBytes))
+			utils.PrintSignedOpJSON(op)
 		}
 	}
 }
