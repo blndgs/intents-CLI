@@ -118,6 +118,17 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	return nil
 }
 
+func (p *UserOpProcessor) Set4337Nonce(op *model.UserOperation, chainMoniker string) error {
+	sender := op.Sender
+	var err error
+	aaNonce, err := ethclient.Get4337Nonce(p.Nodes[chainMoniker].Node.RPCClient, sender)
+	if err != nil {
+		return fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err)
+	}
+	utils.UpdateUserOp(op, aaNonce)
+	return nil
+}
+
 func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.UserOperation) {
 	if p.BundlerURL == "" {
 		panic("bundler URL is not set")
