@@ -76,7 +76,7 @@ func createTransactionOpts(rpcClient *geth.Client, chainID *big.Int, entrypointA
 		ChainID:     chainID,
 		EntryPoint:  entrypointAddr,
 		Batch:       []*stackup_userop.UserOperation{&stackupUserOp},
-		Beneficiary: eoaSigner.Address,
+		Beneficiary: signedUserOp.Sender, // beneficiary is the sender of the UserOperation rather than the bundler which is N/A
 		BaseFee:     gasParams.BaseFee,
 		Tip:         gasParams.Tip,
 		GasPrice:    gasParams.GasPrice,

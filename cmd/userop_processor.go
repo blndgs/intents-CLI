@@ -77,7 +77,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	utils.PrintHash(userOps, p.Hashes, p.EntrypointAddr, chainIDs)
 
 	// Prepare callData
-	callData, err := abi.PrepareHandleOpCalldata(*userOps[0], p.Signer.Address)
+	callData, err := abi.PrepareHandleOpCalldata(*userOps[0], userOps[0].Sender)
 	if err != nil {
 		return errors.Wrap(err, "error preparing userOp callData")
 	}
