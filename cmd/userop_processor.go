@@ -85,10 +85,11 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 	if len(userOps) == 1 && userOps[0].Signature != nil && len(userOps[0].Signature) == 132 {
 		// applicable only for single UserOperation
+		// TODO: Verify multi ops signature
 		p.verifyOpSig(chainIDs[0], p.Signer, userOps[0])
 	}
 
-	if userOps[0].Signature == nil {
+	if userOps[0].Signature == nil || len(userOps) > 1 {
 		p.signUserOps(chainIDs, userOps)
 	}
 
