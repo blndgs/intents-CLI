@@ -27,6 +27,8 @@ const (
 	Offline SubmissionType = iota
 	// BundlerSubmit sends the UserOperation to an EIP-4337 bundler
 	BundlerSubmit
+	// BunderSignSubmit signs and sends the UserOperation to an EIP-4337 bundler
+	BunderSignSubmit
 	// DirectSubmit bypasses the bundler and sends directly to an Ethereum node
 	DirectSubmit
 )
@@ -65,13 +67,11 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 		chainMoniker := p.ChainMonikers[opIdx]
 		chainIDs[opIdx] = p.Nodes[chainMoniker].ChainID
 
-		sender := op.Sender
-		var err error
-		aaNonce, err := ethclient.Get4337Nonce(p.Nodes[chainMoniker].Node.RPCClient, sender)
-		if err != nil {
-			return fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err)
+		if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
+			if err := p.Set4337Nonce(op, chainMoniker); err != nil {
+				return err
+			}
 		}
-		utils.UpdateUserOp(op, aaNonce)
 	}
 	// Print hash
 	utils.PrintHash(userOps, p.Hashes, p.EntrypointAddr, chainIDs)

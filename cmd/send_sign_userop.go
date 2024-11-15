@@ -24,7 +24,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 
 		processor := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 
-		err := processor.ProcessUserOps(userOps, BundlerSubmit)
+		err := processor.ProcessUserOps(userOps, BunderSignSubmit)
 		if err != nil {
 			panic(err)
 		}
