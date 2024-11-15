@@ -89,7 +89,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 		p.verifyOpSig(chainIDs[0], p.Signer, userOps[0])
 	}
 
-	if userOps[0].Signature == nil || len(userOps) > 1 {
+	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
 		p.signUserOps(chainIDs, userOps)
 	}
 

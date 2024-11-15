@@ -45,6 +45,7 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	if userOpInput == "" {
 		panic("user operation JSON is required")
 	}
+	userOpInput = strings.TrimSpace(userOpInput)
 
 	var userOpJSON string
 	if strings.HasPrefix(userOpInput, "{") || strings.HasPrefix(userOpInput, "[") {
