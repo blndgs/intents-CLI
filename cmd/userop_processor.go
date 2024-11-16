@@ -112,8 +112,10 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 		return fmt.Errorf("invalid submission type: %d", submissionAction)
 	}
 
-	// Print signature
-	utils.PrintSignature(userOps[0])
+	// Print signature only when the userOp is an Intent operation
+	if utils.IsValidHex(hex.EncodeToString(userOps[0].CallData)) {
+		utils.PrintSignature(userOps[0])
+	}
 
 	return nil
 }
