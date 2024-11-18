@@ -3,7 +3,7 @@ module github.com/blndgs/intents-sdk
 go 1.21.5
 
 require (
-	github.com/blndgs/model v0.44.0
+	github.com/blndgs/model v0.49.0
 	github.com/ethereum/go-ethereum v1.11.5
 	github.com/golang/protobuf v1.5.3
 	github.com/pkg/errors v0.9.1
