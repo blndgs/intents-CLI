@@ -69,9 +69,10 @@ func TestMatchSoliditySignature(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &tc.userOp, nil)
+			hash := tc.userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)
+			hashes := []common.Hash{hash}
 			require.NoError(t, err)
-			isValid := userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp)
+			isValid := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
 			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
 			actualSig := fmt.Sprintf("%x", signedOp.Signature)
 			require.Equal(t, tc.expectedSignature, actualSig)
@@ -137,12 +138,13 @@ func TestSignConventionalUserOps(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.userOp), &userOp)
 			require.NoError(t, err)
 
-			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp, nil)
+			hash := userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)
+			hashes := []common.Hash{hash}
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.True(t, userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp), "signature is invalid for %s", tc.userOp)
+				require.True(t, userop.VerifySignature(tc.signer.PublicKey, userOps, hashes), "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}
@@ -233,7 +235,7 @@ func TestIntentUserOpSign(t *testing.T) {
 			var userOp model.UserOperation
 			err = json.Unmarshal(modifiedUserOpJSON, &userOp)
 			if err != nil {
-				panic(err)
+			hashes := []common.Hash{userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)}
 			}
 
 			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp, nil)

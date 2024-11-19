@@ -80,75 +80,32 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 	return userOps, nil
 }
 
-// GetOpsHash computes the hash to be signed for single or multiple UserOperations.
-func GetOpsHash(userOps []*model.UserOperation, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
-	count := len(userOps)
-	hashes := make([]common.Hash, count)
-	hashBigs := make([]*big.Int, count)
-
-	for i := 0; i < count; i++ {
-		hash := userOps[i].GetUserOpHash(entryPointAddr, chainIDs[i])
-		hashes[i] = hash
-		hashBigs[i] = new(big.Int).SetBytes(hash[:])
-	}
-
-	if count > 1 {
-		return getAggHash(sortHashes(count, hashBigs, hashes))
-	}
-
-	// Single UserOperation
-	return hashes[0]
-}
-
-// GetXHash computes the hash for single or appending multiple UserOperations' hashes.
-func GetXHash(userOp *model.UserOperation, hashes []common.Hash, entryPointAddr common.Address, chainIDs []*big.Int) common.Hash {
-	hashes = append(hashes, userOp.GetUserOpHash(entryPointAddr, chainIDs[0]))
-
-	return GenXHash(hashes)
-}
 
 // GenXHash computes the hash of multiple UserOperations' hashes.
-func GenXHash(hashes []common.Hash) common.Hash {
-	count := len(hashes)
-	hashBigs := make([]*big.Int, count)
-	for i := 0; i < count; i++ {
-		hashBigs[i] = new(big.Int).SetBytes(hashes[i][:])
+// It concatenates the hashes, sorts them, and hashes the result.
+// The result is the xChainHash.
+func GenXHash(opHashes []common.Hash) common.Hash {
+	// Single userOp use case
+	if len(opHashes) == 1 {
+		return opHashes[0]
 	}
 
-	if count > 1 {
-		// hash the sorted concatenated hashes
-		return getAggHash(sortHashes(count, hashBigs, hashes))
-	}
+	// clone opHashes to avoid sorting the original slice matching the userOps order
+	sortedHashes := make([]common.Hash, len(opHashes))
+	copy(sortedHashes, opHashes)
 
-	// Single UserOperation
-	return hashes[0]
-}
+	slices.SortFunc(sortedHashes, func(a, b common.Hash) int {
+		return bytes.Compare(a[:], b[:])
+	})
 
-func sortHashes(count int, hashBigs []*big.Int, hashes []common.Hash) []common.Hash {
-	// Sort the hashes
-	for i := 0; i < count; i++ {
-		for j := i + 1; j < count; j++ {
-			if hashBigs[i].Cmp(hashBigs[j]) > 0 {
-				hashBigs[i], hashBigs[j] = hashBigs[j], hashBigs[i]
-				hashes[i], hashes[j] = hashes[j], hashes[i]
-			}
-		}
-	}
-
-	return hashes
-}
-
-// getAggHash computes the hash of multiple sorted UserOperations' hashes.
-func getAggHash(hashes []common.Hash) common.Hash {
-	// Concatenate the sorted hashes
+	// hash the sorted concatenated sortedHashes
 	var concatenatedHashes []byte
-	for _, hash := range hashes {
+	for _, hash := range sortedHashes {
 		concatenatedHashes = append(concatenatedHashes, hash[:]...)
 	}
-	// Compute xChainHash
-	xChainHash := crypto.Keccak256Hash(concatenatedHashes)
 
-	return xChainHash
+	// Compute xChainHash
+	return crypto.Keccak256Hash(concatenatedHashes)
 }
 
 // GenerateSignature signs the prefixed message hash with the private key.
@@ -195,7 +152,7 @@ func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPoin
 		panic(errors.New("invalid Ethereum signature (V is not 27 or 28)"))
 	}
 
-	messageHash := GetOpsHash(userOps, entryPointAddr, chainIDs)
+	messageHash := GenXHash(hashes)
 
 	return VerifyHashSignature(messageHash, signature, publicKey)
 }

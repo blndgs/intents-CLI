@@ -17,7 +17,7 @@ import (
 )
 
 func TestCrossChainECDSASignature_MultipleUserOps(t *testing.T) {
-	account, entryPointAddr, chainIDs, userOps := setupMultipleUserOps(t)
+	account, userOps, hashes := setupMultipleUserOps(t)
 
 	// Generate cross-chain signature
 	signedUserOps, err := userop.XSign(chainIDs, entryPointAddr, account, userOps)
@@ -34,10 +34,7 @@ func TestCrossChainECDSASignature_MultipleUserOps(t *testing.T) {
 }
 
 func TestCrossChainECDSASignature_MultipleUserOpsWithHashes(t *testing.T) {
-	account, entryPointAddr, chainIDs, userOps := setupMultipleUserOps(t)
-
-	// Generate cross-chain signature
-	hashes := []common.Hash{userOps[0].GetUserOpHash(entryPointAddr, chainIDs[0]), userOps[1].GetUserOpHash(entryPointAddr, chainIDs[1])}
+	account, _, hashes := setupMultipleUserOps(t)
 
 	messageHash := userop.GenXHash(hashes)
 	fmt.Printf("messageHash: %s\n", messageHash.String())
@@ -58,7 +55,7 @@ func TestCrossChainECDSASignature_SingleUserOpWithHash(t *testing.T) {
 	account, entryPointAddr, chainIDs, userOps := setupSingleUserOp(t)
 
 	// Generate cross-chain signature
-	hashes := []common.Hash{userOps[0].GetUserOpHash(entryPointAddr, chainIDs[0])}
+	hashes := []common.Hash{userOps[0].GetUserOpHash(entryPointAddr, chainIDs[0]), userOps[1].GetUserOpHash(entryPointAddr, chainIDs[1])}
 
 	// Use destChainID and destUserOp for signing
 	signedUserOp, err := userop.Sign(chainIDs[1], entryPointAddr, account, userOps[1], hashes)
@@ -82,7 +79,7 @@ func setupMultipleUserOps(t *testing.T) (*signer.EOA, common.Address, []*big.Int
 	account, entryPointAddr, sourceChainID, destChainID, sourceUserOp, destUserOp := createUserOps(t)
 	chainIDs := []*big.Int{sourceChainID, destChainID}
 	userOps := []*model.UserOperation{sourceUserOp, destUserOp}
-	return account, entryPointAddr, chainIDs, userOps
+	hashes := []common.Hash{sourceUserOp.GetUserOpHash(entryPointAddr, sourceChainID), destUserOp.GetUserOpHash(entryPointAddr, destChainID)}
 }
 
 func setupSingleUserOp(t *testing.T) (*signer.EOA, common.Address, []*big.Int, []*model.UserOperation) {
@@ -158,6 +155,7 @@ func TestConfirmXHash(t *testing.T) {
 		PaymasterAndData:     []byte{},
 		Signature:            []byte{},
 	}
+	opHash := op.GetUserOpHash(entryPointAddr, sourceChainID)
 
 	op2 := &model.UserOperation{
 		Sender:               common.HexToAddress("0x0987654321098765432109876543210987654321"),
@@ -172,11 +170,9 @@ func TestConfirmXHash(t *testing.T) {
 		PaymasterAndData:     []byte{},
 		Signature:            []byte{},
 	}
+	op2Hash := op2.GetUserOpHash(entryPointAddr, destChainID)
 
-	xhash := userop.GetXHash(op,
-		[]common.Hash{op2.GetUserOpHash(entryPointAddr, new(big.Int).SetInt64(56))},
-		entryPointAddr,
-		[]*big.Int{sourceChainID, destChainID})
-	fmt.Printf("xhash: %s\n", xhash.String())
-	require.Equal(t, "0xd9838e154a554803476cd7fdc53c9837e3e43e466cc13ae55848885901ab4150", xhash.String())
+	xHash := userop.GenXHash([]common.Hash{opHash, op2Hash})
+	fmt.Printf("xHash: %s\n", xHash.String())
+	require.Equal(t, "0xd9838e154a554803476cd7fdc53c9837e3e43e466cc13ae55848885901ab4150", xHash.String())
 }

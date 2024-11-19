@@ -103,7 +103,9 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 		fmt.Printf("\nUserOp hash: %s for %s:%s chain\n\n", p.CachedHashes[opIdx], chainMoniker, chainIDs[opIdx])
 	}
-	// Print hash
+	if len(userOps) > 1 {
+		// print the aggregate xChain hash
+		fmt.Printf("Aggregate xChain hash: %s\n", userop.GenXHash(p.CachedHashes))
 	}
 
 	// Prepare callData
