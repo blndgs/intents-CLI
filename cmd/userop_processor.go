@@ -100,9 +100,11 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 				return err
 			}
 		}
+
+		fmt.Printf("\nUserOp hash: %s for %s:%s chain\n\n", p.CachedHashes[opIdx], chainMoniker, chainIDs[opIdx])
 	}
 	// Print hash
-	utils.PrintHash(userOps, p.ProvidedHashes, p.EntrypointAddr, chainIDs)
+	}
 
 	// Prepare callData
 	callData, err := abi.PrepareHandleOpCalldata(*userOps[0], userOps[0].Sender)

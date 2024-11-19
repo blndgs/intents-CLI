@@ -33,6 +33,6 @@ var HashUserOpCmd = &cobra.Command{
 		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
 		genHashes := initHashes(userOps, providedHashes, []*big.Int{nodes[config.DefaultRPCURLKey].ChainID}, entrypointAddr)
 
-		utils.PrintHash(userOps, hashes, entrypointAddr, []*big.Int{nodes[config.DefaultRPCURLKey].ChainID})
+		fmt.Printf("\nUserOp hash: %s for %s:%s chain\n\n", genHashes[0], chainMonikers[0], nodes[config.DefaultRPCURLKey].ChainID)
 	},
 }
