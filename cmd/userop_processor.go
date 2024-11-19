@@ -170,7 +170,6 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 		panic(fmt.Errorf("failed signing user operations of count:%d %w", len(userOps), err))
 	}
 
-	println()
 	if len(userOps) == 1 {
 		fmt.Printf("Signed userOp:\n%s\n", userOps[0])
 
@@ -185,7 +184,7 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 		p.setXCallDataValues(cpyOps)
 
 		for i, op := range cpyOps {
-			fmt.Printf("Signed userOp %d:\n%s\n", i, op)
+			fmt.Printf("\nSigned userOp %d:\n%s\n", i, op)
 
 			utils.PrintSignedOpJSON(op)
 		}

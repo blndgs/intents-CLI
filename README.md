@@ -10,12 +10,133 @@ To build the application, run:
 make build
 ```
 
+## Features
+
+- Sign single or multiple UserOperations
+- Support for cross-chain UserOperations
+- Chain-specific configuration via `--c` flag
+- Generates UserOperation hashes and aggregate cross-chain hashes
+- Outputs EntryPoint handleOps callData
+- Supports various chain configurations (ETH, BSC, Polygon)
+
 ### Configuration
 
 Before running this, your `.env` file should be set up with the necessary configurations like `ETH_NODE_URL`, `SIGNER_PRIVATE_KEY`, etc.
 Checkout `.env.example` for the reference.
 
-### Running the Application
+## Chain Configuration and Cross-Chain Operations
+
+### Environment Variables
+
+```env
+# Signer Configuration
+SIGNER_PRIVATE_KEY=********************************
+
+# Chain RPC Endpoints
+# Polygon (Chain ID: 137)
+ETH_NODE_URL_POLYGON_DEFAULT=https://polygon.gateway.tenderly.co/**************
+
+# Binance Smart Chain (Chain ID: 56)
+ETH_NODE_URL=https://bsc-mainnet.nodereal.io/*****************
+
+# Bundler Configuration
+BUNDLER_URL=https://bsc.bundler.balloondogs.network
+
+# EntryPoint Contract
+ENTRYPOINT_ADDR=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+```
+
+### Chain Configuration
+
+The tool supports multiple chains through environment variables and command-line flags. Chain selection is handled via the `--c` flag, with Polygon (Chain ID: 137) serving as the default chain when no flag is specified.
+
+#### Example Chain Moniker and IDs
+
+| Chain    | Chain ID | Chain Moniker (`--c` flag) | Environment Variable |
+|----------|----------|---------------------------|---------------------|
+| Polygon  | 137      | [default] - no flag needed| `ETH_NODE_URL_POLYGON_DEFAULT` |
+| BSC      | 56       | `bsc`                     | `ETH_NODE_URL_BSC` |
+| Ethereum | 1        | `eth`                     | `ETH_NODE_URL_ETH` |
+
+#### Usage Examples:
+```bash
+# Polygon (default chain) - no --c flag needed
+go run main.go sign --u '<userOperation>'
+
+# Polygon (default) for the first userOperation, BSC for the second user operation
+go run main.go sign --c bsc --u '[<userOperation1>, <userOperation2>]]'
+
+# Ethereum
+go run main.go sign --c eth --u '<userOperation>'
+```
+
+#### Important Notes:
+- Polygon is the default chain and doesn't require the `--c` flag
+- Chain monikers are case-sensitive
+- Each chain requires its corresponding RPC URL in the `.env` file
+```
+
+### Cross-Chain Operations
+
+#### Using the `--c` Flag
+
+The `--c` flag specifies which chain configuration to use when signing UserOperations. This is particularly important for cross-chain transactions where the UserOperation might interact with multiple chains.
+
+```bash
+# For BSC operations
+go run main.go sign --c bsc --u '<userOperation>'
+
+# For Polygon operations
+go run main.go sign --c polygon --u '<userOperation>'
+```
+
+#### Cross-Chain UserOperation Structure
+
+When creating a UserOperation that involves cross-chain interactions, the `callData` field should specify the source and destination chain IDs:
+
+```json
+{
+  "fromAsset": {
+    "address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "amount": {"value": "I4byb8EAAA=="},
+    "chainId": {"value": "iQ=="} // Base64 encoded chain ID
+  },
+  "toStake": {
+    "address": "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6",
+    "amount": {"value": "D0JA"},
+    "chainId": {"value": "OA=="} // Base64 encoded chain ID
+  }
+}
+```
+
+#### Multi-Chain Transaction Example
+
+```bash
+go run main.go sign --c bsc --u '[
+  {
+    "sender": "0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+    "nonce": "0x1",
+    "callData": {
+      "fromAsset": {
+        "chainId": {"value": "56"}, # BSC
+        ...
+      },
+      "toStake": {
+        "chainId": {"value": "137"}, # Polygon
+        ...
+      }
+    },
+    ...
+  }
+]'
+
+## Usage
+
+### Basic Usage
+
+```bash
+go run main.go sign --u '<userOperation>'
+```
 
 #### Using JSON Input String
 
@@ -35,15 +156,54 @@ Alternatively, you can use a JSON file as input:
 intents-cli [command] --u ./sample.json
 ```
 
+## Input Format
+
+### Single UserOperation
+
+```json
+{
+  "sender": "0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+  "nonce": "0x1",
+  "initCode": "0x",
+  "callData": "...",
+  "callGasLimit": "0xc3500",
+  "verificationGasLimit": "0x996a0",
+  "preVerificationGas": "0x99000",
+  "maxFeePerGas": "0x0",
+  "maxPriorityFeePerGas": "0x0",
+  "paymasterAndData": "0x",
+  "signature": "0x"
+}
+```
+
+### Multiple UserOperations
+
+```json
+[
+  {
+    "sender": "0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+    "nonce": "0x1",
+    ...
+  },
+  {
+    "sender": "0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+    "nonce": "0x2",
+    ...
+  }
+]
+```
+
 ### Available Commands
 
-- `sign`: Sign a userOp.
+- `sign`: Sign a single or 2 cross-chain userOps.
 - `send`: Submit a userOp to the node's EVM Entrypoint handleOps.
 - `sign-send` : Sign and send a userOp.
 - `hash`: Generate the hash of a userOp.
-- `on-chain`: Submit a userOp to the node's EVM Entrypoint handleOps bypassing the solver.
+- `on-chain`: Submit a userOp to the node's EVM Entrypoint handleOps bypassing the Bundler.
 
 ### Available Flags
+
+- `--c`: Optional chain moniker(s) for multiple user operations. The moniker(s) apply to user operations starting from the second one. The first operation is always mapped to the `DEFAULT` moniker.
 
 - `--u`: User operation JSON as string or path to a JSON file.
 
@@ -84,6 +244,94 @@ intents-cli sign --u '{
         "paymasterAndData":"0x",
         "signature":"0x"
 }'
+```
+3 - Sign multiple userOps with different chain monikers:
+
+```shell
+
+Here's a full example of signing multiple UserOperations for cross-chain transactions:
+
+```shell
+go run main.go sign --c bsc --u '[
+  {
+    "sender":"0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+    "nonce":"0x1",
+    "initCode":"0x",
+    "callData":"{\"fromAsset\":{\"address\":\"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"amount\":{\"value\":\"I4byb8EAAA==\"},\"chainId\":{\"value\":\"iQ==\"}},\"toStake\":{\"address\":\"0x1adB950d8bB3dA4bE104211D5AB038628e477fE6\",\"amount\":{\"value\":\"D0JA\"},\"chainId\":{\"value\":\"OA==\"}}}",
+    "callGasLimit":"0xc3500",
+    "verificationGasLimit":"0x996a0",
+    "preVerificationGas":"0x99000",
+    "maxFeePerGas":"0x0",
+    "maxPriorityFeePerGas":"0x0",
+    "paymasterAndData":"0x",
+    "signature":"0x"
+  },
+  {
+    "sender":"0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+    "nonce":"0x1",
+    "initCode":"0x",
+    "callData":"{\"fromAsset\":{\"address\":\"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee\",\"amount\":{\"value\":\"I4byb8EAAA==\"},\"chainId\":{\"value\":\"iQ==\"}},\"toStake\":{\"address\":\"0x1adB950d8bB3dA4bE104211D5AB038628e477fE6\",\"amount\":{\"value\":\"D0JA\"},\"chainId\":{\"value\":\"OA==\"}}}",
+    "callGasLimit":"0xc3500",
+    "verificationGasLimit":"0x996a0",
+    "preVerificationGas":"0x99000",
+    "maxFeePerGas":"0x0",
+    "maxPriorityFeePerGas":"0x0",
+    "paymasterAndData":"0x",
+    "signature":"0x"
+  }
+]'
+```
+
+Example output:
+```
+Signer private key: 0x************************************************
+Public key: 685437284bbad2533f115de951f0f0deb803b9a4dddcfe06894dfd72defe10b53117abdb81aab2bb1d695bc0c8688a2153639718b3c410b70c8c1de3758ac49e
+Address: 0xE0ea66C1d0d0bbf67ab8Bf85731D9011983C9E26
+Entrypoint Address: 0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
+Node moniker: vbsc890 url: https://virtual.binance.rpc.tenderly.co/*********************
+Node moniker: eth url: https://mainnet.gateway.tenderly.co/*************
+Node moniker: default url: https://polygon.gateway.tenderly.co/*************
+Node moniker: bsc url: https://site1.moralis-nodes.com/bsc/***********************
+
+UserOp hash: 0x54cf0aa22319b719a7c4d9dd750528e2929de0890b8eaed2804ea93e218ceba2 for default:137 chain
+UserOp hash: 0x2bc16073c342558aeaa44ba6a14741350c7c1506eb3297348fd41e5e72b49759 for bsc:56 chain
+Aggregate xChain hash: 0x8e020d460e7db7efac80f379071da10f43fabd8f714ca68df7ce4d86908c5591
+
+Entrypoint handleOps callData: 
+0x1fad948c00000000000000000000000000000000000000000000000000000000000000400000000000000000000000008ee0051fdb9bb3e3ac94faa30d31895fa9a3adc5000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000200000000000000000000000008ee0051fdb9bb3e3ac94faa30d31895fa9a3adc500000000000000000000000000000000000000000000000000000000000000040000000000000000000000000000000000000000000000000000000000000160000000000000000000000000000000000000000000000000000000000000018000000000000000000000000000000000000000000000000000000000000c350000000000000000000000000000000000000000000000000000000000000996a000000000000000000000000000000000000000000000000000000000000990000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002a000000000000000000000000000000000000000000000000000000000000002c0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000
+
+
+Signed userOp 0:
+UserOperation{
+  Sender: 0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5
+  Nonce: 0x4, 4
+  InitCode: 0x
+  CallData: {"fromAsset":{"address":"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","amount":{"value":"I4byb8EAAA=="},"chainId":{"value":"iQ=="}},"toStake":{"address":"0x1adB950d8bB3dA4bE104211D5AB038628e477fE6","amount":{"value":"D0JA"},"chainId":{"value":"OA=="}}}
+  CallGasLimit: 0xc3500, 800000
+  VerificationGasLimit: 0x996a0, 628384
+  PreVerificationGas: 0x99000, 626688
+  MaxFeePerGas: 0x0, 0
+  MaxPriorityFeePerGas: 0x0, 0
+  PaymasterAndData: 0x
+  Signature: 0xa0f4124dfe7a1c065b17b84ed20e3e1361d0da488a21b8d80b324aed7c14dd6e4558b14a3762feef01a7164cd9cbca389d1756ccd45eaf003f52bcac252158fe1cffff00fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d022bc16073c342558aeaa44ba6a14741350c7c1506eb3297348fd41e5e72b49759ffff
+}
+Signed UserOp in JSON: {"sender":"0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5","nonce":"0x4","initCode":"0x","callData":"0x","callGasLimit":"0xc3500","verificationGasLimit":"0x996a0","preVerificationGas":"0x99000","maxFeePerGas":"0x0","maxPriorityFeePerGas":"0x0","paymasterAndData":"0x","signature":"0xa0f4124dfe7a1c065b17b84ed20e3e1361d0da488a21b8d80b324aed7c14dd6e4558b14a3762feef01a7164cd9cbca389d1756ccd45eaf003f52bcac252158fe1cffff00fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d022bc16073c342558aeaa44ba6a14741350c7c1506eb3297348fd41e5e72b49759ffff"}
+
+Signed userOp 1:
+UserOperation{
+  Sender: 0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5
+  Nonce: 0x1, 1
+  InitCode: 0x
+  CallData: {"fromAsset":{"address":"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","amount":{"value":"I4byb8EAAA=="},"chainId":{"value":"iQ=="}},"toStake":{"address":"0x1adB950d8bB3dA4bE104211D5AB038628e477fE6","amount":{"value":"D0JA"},"chainId":{"value":"OA=="}}}
+  CallGasLimit: 0xc3500, 800000
+  VerificationGasLimit: 0x996a0, 628384
+  PreVerificationGas: 0x99000, 626688
+  MaxFeePerGas: 0x0, 0
+  MaxPriorityFeePerGas: 0x0, 0
+  PaymasterAndData: 0x
+  Signature: 0xa0f4124dfe7a1c065b17b84ed20e3e1361d0da488a21b8d80b324aed7c14dd6e4558b14a3762feef01a7164cd9cbca389d1756ccd45eaf003f52bcac252158fe1cffff00fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d02ffff54cf0aa22319b719a7c4d9dd750528e2929de0890b8eaed2804ea93e218ceba2
+}
+Signed UserOp in JSON: {"sender":"0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5","nonce":"0x1","initCode":"0x","callData":"0x","callGasLimit":"0xc3500","verificationGasLimit":"0x996a0","preVerificationGas":"0x99000","maxFeePerGas":"0x0","maxPriorityFeePerGas":"0x0","paymasterAndData":"0x","signature":"0xa0f4124dfe7a1c065b17b84ed20e3e1361d0da488a21b8d80b324aed7c14dd6e4558b14a3762feef01a7164cd9cbca389d1756ccd45eaf003f52bcac252158fe1cffff00fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d02ffff54cf0aa22319b719a7c4d9dd750528e2929de0890b8eaed2804ea93e218ceba2"}
 ```
 
 ### Cleaning Up
