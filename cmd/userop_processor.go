@@ -182,6 +182,7 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 			cpyOps[i] = new(model.UserOperation)
 			*cpyOps[i] = *op
 		}
+		p.setXCallDataValues(cpyOps)
 
 		for i, op := range cpyOps {
 			fmt.Printf("Signed userOp %d:\n%s\n", i, op)
@@ -189,6 +190,31 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 			utils.PrintSignedOpJSON(op)
 		}
 	}
+}
+
+// setXCallDataValues sets the xCallData values for the source and destination UserOperations.
+// When we extend the x-chain ops to 3 or more, we will update the model's `EncodeCrossChainCallData` and this
+// function to set the list of the other userOps hash values
+func (p *UserOpProcessor) setXCallDataValues(userOps []*model.UserOperation) {
+	if len(userOps) != 2 {
+		panic("only 2 UserOperations are supported")
+	}
+
+	var err error
+	// append the xCallData values to the UserOperations' signature value and set an empty CallData field value
+	xCallDataValue, err := userOps[0].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[1], true)
+	userOps[0].CallData = []byte{}
+	if err != nil {
+		panic(fmt.Errorf("failed encoding the sourceOp xCallData value: %w", err))
+	}
+	userOps[0].Signature = append(userOps[0].Signature, xCallDataValue...)
+
+	xCallDataValue, err = userOps[1].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[0], false)
+	userOps[1].CallData = []byte{}
+	if err != nil {
+		panic(fmt.Errorf("failed encoding the destOp xCallData value: %w", err))
+	}
+	userOps[1].Signature = append(userOps[1].Signature, xCallDataValue...)
 }
 
 func (p *UserOpProcessor) sendUserOp(signedUserOp *model.UserOperation) {
