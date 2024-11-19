@@ -41,7 +41,7 @@ type UserOpProcessor struct {
 	ProvidedHashes []common.Hash
 	CachedHashes   []common.Hash
 	ChainMonikers  []string
-	ChainID        *big.Int
+	ChainIDs       []*big.Int
 }
 
 func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, bundlerURL string, entrypointAddr common.Address, signer *signer.EOA, hashes []common.Hash, chainMonikers []string) *UserOpProcessor {
@@ -67,6 +67,7 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 		Signer:         signer,
 		ProvidedHashes: hashes,
 		CachedHashes:   cachedHashes,
+		ChainIDs:       chainIDs,
 		ChainMonikers:  chainMonikers,
 	}
 }
@@ -90,10 +91,9 @@ func initHashes(userOps []*model.UserOperation, providedHashes []common.Hash, ch
 }
 
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
-	chainIDs := make([]*big.Int, len(userOps))
+	println()
 	for opIdx, op := range userOps {
 		chainMoniker := p.ChainMonikers[opIdx]
-		chainIDs[opIdx] = p.Nodes[chainMoniker].ChainID
 
 		if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
 			if err := p.Set4337Nonce(op, chainMoniker); err != nil {
@@ -101,7 +101,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 			}
 		}
 
-		fmt.Printf("\nUserOp hash: %s for %s:%s chain\n\n", p.CachedHashes[opIdx], chainMoniker, chainIDs[opIdx])
+		fmt.Printf("UserOp hash: %s for %s:%s chain\n", p.CachedHashes[opIdx], chainMoniker, p.ChainIDs[opIdx])
 	}
 	if len(userOps) > 1 {
 		// print the aggregate xChain hash
@@ -113,7 +113,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	if err != nil {
 		return errors.Wrap(err, "error preparing userOp callData")
 	}
-	fmt.Printf("Entrypoint handleOps callData: \n%s\n\n", callData)
+	fmt.Printf("\nEntrypoint handleOps callData: \n%s\n\n", callData)
 
 	if len(userOps[0].Signature) == 65 {
 		userop.VerifySignature(p.Signer.PublicKey, userOps, p.CachedHashes)
@@ -136,7 +136,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 	case DirectSubmit:
 		// Submit directly to Ethereum node
-		p.submit(context.Background(), chainIDs[0], userOps[0])
+		p.submit(context.Background(), p.ChainIDs[0], userOps[0])
 
 	default:
 		return fmt.Errorf("invalid submission type: %d", submissionAction)
@@ -161,12 +161,16 @@ func (p *UserOpProcessor) Set4337Nonce(op *model.UserOperation, chainMoniker str
 	return nil
 }
 
-func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.UserOperation) {
+func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 	if p.BundlerURL == "" {
 		panic("bundler URL is not set")
 	}
 
-	var err error
+	if err := userop.SignUserOperations(p.Signer, p.CachedHashes, userOps); err != nil {
+		panic(fmt.Errorf("failed signing user operations of count:%d %w", len(userOps), err))
+	}
+
+	println()
 	if len(userOps) == 1 {
 		fmt.Printf("Signed userOp:\n%s\n", userOps[0])
 
@@ -175,6 +179,11 @@ func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.User
 	} else {
 		cpyOps := make([]*model.UserOperation, len(userOps))
 		for i, op := range userOps {
+			cpyOps[i] = new(model.UserOperation)
+			*cpyOps[i] = *op
+		}
+
+		for i, op := range cpyOps {
 			fmt.Printf("Signed userOp %d:\n%s\n", i, op)
 
 			utils.PrintSignedOpJSON(op)
