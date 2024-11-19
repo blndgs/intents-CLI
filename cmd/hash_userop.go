@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
@@ -27,7 +28,10 @@ var HashUserOpCmd = &cobra.Command{
 			panic("Only a single userOp is supported")
 		}
 
-		hashes := utils.GetHashes(cmd)
+		providedHashes := utils.GetHashes(cmd)
+
+		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		genHashes := initHashes(userOps, providedHashes, []*big.Int{nodes[config.DefaultRPCURLKey].ChainID}, entrypointAddr)
 
 		utils.PrintHash(userOps, hashes, entrypointAddr, []*big.Int{nodes[config.DefaultRPCURLKey].ChainID})
 	},

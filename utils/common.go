@@ -11,7 +11,6 @@ import (
 	"strings"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
@@ -242,21 +241,6 @@ func PrintSignedOpJSON(userOp *model.UserOperation) {
 func PrintSignature(userOp *model.UserOperation) {
 	fmt.Printf("\nSignature value after solution:\n%s\n",
 		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
-}
-
-// PrintHash prints the userOp hash value.
-func PrintHash(userOps []*model.UserOperation, hashes []common.Hash, entrypoint common.Address, chainIDs []*big.Int) {
-	if len(hashes) > 0 && len(userOps) == 1 {
-		// Print the x-chain hash value of the provided userOp and the list of other cross-chain user operations hashes
-		fmt.Printf("\nUserOp's Hash value:\n%s\n", userop.GetXHash(userOps[0], hashes, entrypoint, chainIDs))
-	} else if len(hashes) == 0 {
-		// Print the single userOp Hash
-		// or
-		// Print the multiple userOps x-chain Hash
-		fmt.Printf("\nUserOp(s) Hash value:\n%s\n", userop.GetOpsHash(userOps, entrypoint, chainIDs))
-	} else {
-		panic(fmt.Errorf("invalid userOp and hashes combination, length of hashes %d, userOps %d", len(hashes), len(userOps)))
-	}
 }
 
 // IsValidHex checks if a string is a valid hexadecimal representation.

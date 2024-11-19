@@ -38,7 +38,8 @@ type UserOpProcessor struct {
 	BundlerURL     string
 	EntrypointAddr common.Address
 	Signer         *signer.EOA
-	Hashes         []common.Hash
+	ProvidedHashes []common.Hash
+	CachedHashes   []common.Hash
 	ChainMonikers  []string
 	ChainID        *big.Int
 }
@@ -51,14 +52,41 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 		panic("hashes must be empty for multiple UserOperations as they are computed by the userOps")
 	}
 
+	chainIDs := make([]*big.Int, len(userOps))
+	for opIdx := range userOps {
+		chainMoniker := chainMonikers[opIdx]
+		chainIDs[opIdx] = nodes[chainMoniker].ChainID
+	}
+
+	cachedHashes := initHashes(userOps, hashes, chainIDs, entrypointAddr)
+
 	return &UserOpProcessor{
 		Nodes:          nodes,
 		BundlerURL:     bundlerURL,
 		EntrypointAddr: entrypointAddr,
 		Signer:         signer,
-		Hashes:         hashes,
+		ProvidedHashes: hashes,
+		CachedHashes:   cachedHashes,
 		ChainMonikers:  chainMonikers,
 	}
+}
+
+func initHashes(userOps []*model.UserOperation, providedHashes []common.Hash, chainIDs []*big.Int, entrypointAddr common.Address) []common.Hash {
+	cachedHashes := make([]common.Hash, 0, len(userOps))
+
+	// set the userOps providedHashes
+	for i, op := range userOps {
+		var hash common.Hash
+		if len(providedHashes) > i && providedHashes[i] != (common.Hash{}) {
+			// use the provided hash
+			hash = providedHashes[i]
+		} else {
+			// compute the hash
+			hash = op.GetUserOpHash(entrypointAddr, chainIDs[i])
+		}
+		cachedHashes = append(cachedHashes, hash)
+	}
+	return cachedHashes
 }
 
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
@@ -74,7 +102,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 		}
 	}
 	// Print hash
-	utils.PrintHash(userOps, p.Hashes, p.EntrypointAddr, chainIDs)
+	utils.PrintHash(userOps, p.ProvidedHashes, p.EntrypointAddr, chainIDs)
 
 	// Prepare callData
 	callData, err := abi.PrepareHandleOpCalldata(*userOps[0], userOps[0].Sender)
@@ -84,7 +112,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	fmt.Printf("Entrypoint handleOps callData: \n%s\n\n", callData)
 
 	if len(userOps) == 1 && userOps[0].Signature != nil && len(userOps[0].Signature) == 65 {
-		// applicable only for single UserOperation
+		userop.VerifySignature(p.Signer.PublicKey, userOps, p.CachedHashes)
 		// TODO: Verify multi ops signature
 		p.verifyOpSig(chainIDs[0], p.Signer, userOps[0])
 	}
@@ -138,7 +166,7 @@ func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.User
 
 	var err error
 	if len(userOps) == 1 {
-		userOps[0], err = userop.Sign(chainIDs[0], p.EntrypointAddr, p.Signer, userOps[0], p.Hashes)
+		userOps[0], err = userop.Sign(chainIDs[0], p.EntrypointAddr, p.Signer, userOps[0], p.ProvidedHashes)
 		if err != nil {
 			panic(fmt.Errorf("failed signing user operation: %w", err))
 		}
