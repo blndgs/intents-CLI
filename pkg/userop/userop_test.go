@@ -71,11 +71,17 @@ func TestMatchSoliditySignature(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			hash := tc.userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)
 			hashes := []common.Hash{hash}
+			userOps := []*model.UserOperation{&tc.userOp}
+			err := userop.SignUserOperations(tc.signer, hashes, userOps)
 			require.NoError(t, err)
 			isValid := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
 			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
-			actualSig := fmt.Sprintf("%x", signedOp.Signature)
+			actualSig := fmt.Sprintf("%x", tc.userOp.Signature)
 			require.Equal(t, tc.expectedSignature, actualSig)
+			genSig, err := userop.GenerateSignature(hash, tc.signer.PrivateKey)
+			genSigSigned := fmt.Sprintf("%x", genSig)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedSignature, genSigSigned)
 		})
 	}
 }
@@ -140,6 +146,8 @@ func TestSignConventionalUserOps(t *testing.T) {
 
 			hash := userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)
 			hashes := []common.Hash{hash}
+			userOps := []*model.UserOperation{&userOp}
+			err = userop.SignUserOperations(tc.signer, hashes, userOps)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
@@ -234,16 +242,15 @@ func TestIntentUserOpSign(t *testing.T) {
 			// Unmarshal into userOp struct
 			var userOp model.UserOperation
 			err = json.Unmarshal(modifiedUserOpJSON, &userOp)
-			if err != nil {
+			require.NoError(t, err)
 			hashes := []common.Hash{userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)}
-			}
-
-			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp, nil)
+			userOps := []*model.UserOperation{&userOp}
+			err = userop.SignUserOperations(tc.signer, hashes, userOps)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
+				if !userop.VerifySignature(tc.signer.PublicKey, userOps, hashes) {
 					t.Errorf("signature is invalid for %s", tc.userOp)
 				}
 			}

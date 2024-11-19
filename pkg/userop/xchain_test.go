@@ -2,7 +2,6 @@ package userop_test
 
 import (
 	"crypto/ecdsa"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 	"testing"
@@ -20,16 +19,16 @@ func TestCrossChainECDSASignature_MultipleUserOps(t *testing.T) {
 	account, userOps, hashes := setupMultipleUserOps(t)
 
 	// Generate cross-chain signature
-	signedUserOps, err := userop.XSign(chainIDs, entryPointAddr, account, userOps)
+	err := userop.SignUserOperations(account, hashes, userOps)
 	require.NoError(t, err)
 
 	// Verify the signature
-	isValid := userop.VerifyXSignature(chainIDs, account.PublicKey, entryPointAddr, signedUserOps)
+	isValid := userop.VerifySignature(account.PublicKey, userOps, hashes)
 	require.True(t, isValid, "Signature is invalid for cross-chain UserOperations")
 
 	// Check if the signature matches the one from the Solidity test
 	expectedSignature := "babbe1fb0f5154d9fb263e64d1b0d9a74b184aaaaa8655a3a4fc8344bc4a8580691393eecc7cd518f0f95119c235b11c566941517aa8cc74ddf0add0af1131ae1b"
-	actualSignature := fmt.Sprintf("%x", signedUserOps[0].Signature)
+	actualSignature := fmt.Sprintf("%x", userOps[0].Signature)
 	require.Equal(t, expectedSignature, actualSignature, "Generated signature does not match expected signature")
 }
 
@@ -58,28 +57,27 @@ func TestCrossChainECDSASignature_SingleUserOpWithHash(t *testing.T) {
 	hashes := []common.Hash{userOps[0].GetUserOpHash(entryPointAddr, chainIDs[0]), userOps[1].GetUserOpHash(entryPointAddr, chainIDs[1])}
 
 	// Use destChainID and destUserOp for signing
-	signedUserOp, err := userop.Sign(chainIDs[1], entryPointAddr, account, userOps[1], hashes)
+	err := userop.SignUserOperations(account, hashes, userOps)
 	require.NoError(t, err)
 
-	fmt.Printf("signature: %s\n", hex.EncodeToString(signedUserOp.Signature))
+	// Verify the signature of the 2nd UserOperation that should be identical to the first operation
+	require.Equal(t, userOps[0].Signature, userOps[1].Signature, "Signatures do not match for cross-chain UserOperations")
 
-	messageHash := userop.GetXHash(userOps[1], hashes, entryPointAddr, []*big.Int{chainIDs[1]})
-	fmt.Printf("messageHash: %s\n", messageHash.String())
-
-	isValid := userop.VerifyHashSignature(messageHash, signedUserOp.Signature, account.PublicKey)
+	messageHash := userop.GenXHash(hashes)
+	isValid := userop.VerifyHashSignature(messageHash, userOps[0].Signature, account.PublicKey)
 	require.True(t, isValid, "Signature is invalid for cross-chain UserOperations")
 
 	// Verify the signature
 	expectedSignature := "babbe1fb0f5154d9fb263e64d1b0d9a74b184aaaaa8655a3a4fc8344bc4a8580691393eecc7cd518f0f95119c235b11c566941517aa8cc74ddf0add0af1131ae1b"
-	actualSignature := fmt.Sprintf("%x", signedUserOp.Signature)
+	actualSignature := fmt.Sprintf("%x", userOps[0].Signature)
 	require.Equal(t, expectedSignature, actualSignature, "Generated signature does not match expected signature")
 }
 
-func setupMultipleUserOps(t *testing.T) (*signer.EOA, common.Address, []*big.Int, []*model.UserOperation) {
+func setupMultipleUserOps(t *testing.T) (*signer.EOA, []*model.UserOperation, []common.Hash) {
 	account, entryPointAddr, sourceChainID, destChainID, sourceUserOp, destUserOp := createUserOps(t)
-	chainIDs := []*big.Int{sourceChainID, destChainID}
 	userOps := []*model.UserOperation{sourceUserOp, destUserOp}
 	hashes := []common.Hash{sourceUserOp.GetUserOpHash(entryPointAddr, sourceChainID), destUserOp.GetUserOpHash(entryPointAddr, destChainID)}
+	return account, userOps, hashes
 }
 
 func setupSingleUserOp(t *testing.T) (*signer.EOA, common.Address, []*big.Int, []*model.UserOperation) {

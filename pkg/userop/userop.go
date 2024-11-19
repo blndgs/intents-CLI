@@ -5,66 +5,20 @@ import (
 	"crypto/ecdsa"
 	"errors"
 	"fmt"
-	"math/big"
 
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
+	"golang.org/x/exp/slices"
 )
 
-// Sign signs a single UserOperation with the given private key.
-func Sign(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation, hashes []common.Hash) (*model.UserOperation, error) {
-	userOps := []*model.UserOperation{userOp}
-	chainIDs := []*big.Int{chainID}
-
-	signedOps, err := signUserOperations(chainIDs, entryPointAddr, signer, userOps, hashes)
+// SignUserOperations is a helper function to sign one or multiple UserOperations.
+func SignUserOperations(signer *signer.EOA, hashes []common.Hash, userOps []*model.UserOperation) error {
+	messageHash := GenXHash(hashes)
+	signature, err := GenerateSignature(messageHash, signer.PrivateKey)
 	if err != nil {
-		return nil, err
-	}
-	return signedOps[0], nil
-}
-
-// XSign signs multiple UserOperations (cross-chain) with the given private key.
-func XSign(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation) ([]*model.UserOperation, error) {
-	if len(chainIDs) < 2 {
-		return nil, errors.New("at least two chainIDs are required")
-	}
-	if len(userOps) < 2 {
-		return nil, errors.New("at least two UserOperations are required")
-	}
-	return signUserOperations(chainIDs, entryPointAddr, signer, userOps, nil)
-}
-
-// signUserOperations is a helper function to sign one or multiple UserOperations.
-func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, signer *signer.EOA, userOps []*model.UserOperation, hashes []common.Hash) ([]*model.UserOperation, error) {
-	if len(chainIDs) != len(userOps) {
-		return nil, errors.New("number of chainIDs and userOps must match")
-	}
-	if len(userOps) > 1 && len(hashes) > 0 {
-		return nil, errors.New("hashes must be empty for multiple UserOperations as they are computed by the userOps")
-	}
-
-	var (
-		signature   []byte
-		messageHash common.Hash
-		err         error
-	)
-	// no cross-chain hashes provided but 1 or more UserOperations
-	if len(hashes) == 0 {
-		messageHash = GetOpsHash(userOps, entryPointAddr, chainIDs)
-		signature, err = GenerateSignature(messageHash, signer.PrivateKey)
-		if err != nil {
-			return nil, err
-		}
-
-		// hashes are provided for all but the first UserOperation
-	} else {
-		messageHash = GetXHash(userOps[0], hashes, entryPointAddr, chainIDs)
-		signature, err = GenerateSignature(messageHash, signer.PrivateKey)
-		if err != nil {
-			return nil, err
-		}
+		return err
 	}
 
 	// Assign the signature to all UserOperations
@@ -74,12 +28,11 @@ func signUserOperations(chainIDs []*big.Int, entryPointAddr common.Address, sign
 
 	// Verify the signature
 	if !VerifyHashSignature(messageHash, signature, signer.PublicKey) {
-		return nil, fmt.Errorf("signature is invalid")
+		return fmt.Errorf("signature is invalid")
 	}
 
-	return userOps, nil
+	return nil
 }
-
 
 // GenXHash computes the hash of multiple UserOperations' hashes.
 // It concatenates the hashes, sorts them, and hashes the result.
@@ -133,13 +86,8 @@ func getEtherMsgHash(messageHash common.Hash) common.Hash {
 	return crypto.Keccak256Hash(message)
 }
 
-// VerifySignature verifies the signature of a single UserOperation.
-func VerifySignature(chainID *big.Int, publicKey *ecdsa.PublicKey, entryPointAddr common.Address, userOp *model.UserOperation) bool {
-	return VerifyXSignature([]*big.Int{chainID}, publicKey, entryPointAddr, []*model.UserOperation{userOp})
-}
-
-// VerifyXSignature verifies the signature of one or multiple UserOperations.
-func VerifyXSignature(chainIDs []*big.Int, publicKey *ecdsa.PublicKey, entryPointAddr common.Address, userOps []*model.UserOperation) bool {
+// VerifySignature verifies the signature of one or multiple UserOperations.
+func VerifySignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) bool {
 	if len(userOps) == 0 {
 		return false
 	}

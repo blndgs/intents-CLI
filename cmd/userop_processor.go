@@ -115,14 +115,12 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 	fmt.Printf("Entrypoint handleOps callData: \n%s\n\n", callData)
 
-	if len(userOps) == 1 && userOps[0].Signature != nil && len(userOps[0].Signature) == 65 {
+	if len(userOps[0].Signature) == 65 {
 		userop.VerifySignature(p.Signer.PublicKey, userOps, p.CachedHashes)
-		// TODO: Verify multi ops signature
-		p.verifyOpSig(chainIDs[0], p.Signer, userOps[0])
 	}
 
 	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
-		p.signUserOps(chainIDs, userOps)
+		p.signUserOps(userOps)
 	} else {
 		// Print JSON for verified userOp signature
 		utils.PrintSignedOpJSON(userOps[0])
@@ -170,19 +168,12 @@ func (p *UserOpProcessor) signUserOps(chainIDs []*big.Int, userOps []*model.User
 
 	var err error
 	if len(userOps) == 1 {
-		userOps[0], err = userop.Sign(chainIDs[0], p.EntrypointAddr, p.Signer, userOps[0], p.ProvidedHashes)
-		if err != nil {
-			panic(fmt.Errorf("failed signing user operation: %w", err))
-		}
 		fmt.Printf("Signed userOp:\n%s\n", userOps[0])
 
 		// Marshal signedOp into JSON
 		utils.PrintSignedOpJSON(userOps[0])
 	} else {
-		userOps, err = userop.XSign(chainIDs, p.EntrypointAddr, p.Signer, userOps)
-		if err != nil {
-			panic(fmt.Errorf("failed signing user operations: %w", err))
-		}
+		cpyOps := make([]*model.UserOperation, len(userOps))
 		for i, op := range userOps {
 			fmt.Printf("Signed userOp %d:\n%s\n", i, op)
 
@@ -207,15 +198,6 @@ func (p *UserOpProcessor) sendUserOp(signedUserOp *model.UserOperation) {
 	}
 
 	fmt.Println("UserOperation Receipt:", string(receipt))
-}
-
-// verifyOpSig verifies the signature of the user operation and then sends it.
-func (p *UserOpProcessor) verifyOpSig(chainID *big.Int, signer *signer.EOA, signedUserOp *model.UserOperation) {
-	// verify signature
-	if signedUserOp.Signature != nil && !userop.VerifySignature(chainID, p.Signer.PublicKey, p.EntrypointAddr, signedUserOp) {
-		// signal to generate signature
-		signedUserOp.Signature = nil
-	}
 }
 
 func (p *UserOpProcessor) submit(ctx context.Context, chainID *big.Int, signedUserOp *model.UserOperation) {
