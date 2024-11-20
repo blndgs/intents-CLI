@@ -142,8 +142,8 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 
 	// Print signature only when the userOp is an Intent operation
-	if utils.IsValidHex(hex.EncodeToString(userOps[0].CallData)) {
-		utils.PrintSignature(userOps[0])
+	if userOps[0].HasIntent() {
+		utils.PrintPostIntentSolutionSignature(userOps[0])
 	}
 
 	return nil

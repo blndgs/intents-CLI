@@ -237,8 +237,8 @@ func PrintSignedOpJSON(userOp *model.UserOperation) {
 	fmt.Println("Signed UserOp in JSON:", string(jsonBytes))
 }
 
-// PrintSignature prints the signature + hex encoded intent JSON (calldata).
-func PrintSignature(userOp *model.UserOperation) {
+// PrintPostIntentSolutionSignature prints the signature + hex encoded intent JSON (calldata).
+func PrintPostIntentSolutionSignature(userOp *model.UserOperation) {
 	fmt.Printf("\nSignature value after solution:\n%s\n",
 		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
 }
