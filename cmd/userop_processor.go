@@ -169,8 +169,11 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 		panic(fmt.Errorf("failed signing user operations of count:%d %w", len(userOps), err))
 	}
 
+	recoveredAddress := userop.RecoverSigner(userop.GenXHash(p.CachedHashes), userOps[0].Signature)
+
 	if len(userOps) == 1 {
 		fmt.Printf("Signed userOp:\n%s\n", userOps[0])
+		fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
 
 		// Marshal signedOp into JSON
 		utils.PrintSignedOpJSON(userOps[0])
@@ -184,6 +187,7 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 
 		for i, op := range cpyOps {
 			fmt.Printf("\nSigned userOp %d:\n%s\n", i, op)
+			fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
 
 			utils.PrintSignedOpJSON(op)
 		}

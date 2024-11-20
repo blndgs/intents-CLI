@@ -116,6 +116,13 @@ func VerifySignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation,
 
 // VerifyHashSignature verifies the signature against the message hash and public key.
 func VerifyHashSignature(messageHash common.Hash, signature []byte, publicKey *ecdsa.PublicKey) bool {
+	recoveredAddress := RecoverSigner(messageHash, signature)
+	expectedAddress := crypto.PubkeyToAddress(*publicKey)
+
+	return recoveredAddress == expectedAddress.String()
+}
+
+func RecoverSigner(messageHash common.Hash, signature []byte) string {
 	sigCopy := bytes.Clone(signature)
 	sigCopy[64] -= 27 // Transform V from 27/28 (yellow paper) to 0/1
 
@@ -124,11 +131,8 @@ func VerifyHashSignature(messageHash common.Hash, signature []byte, publicKey *e
 	recoveredPubKey, err := crypto.SigToPub(prefixedHash.Bytes(), sigCopy)
 	if err != nil {
 		fmt.Printf("Failed to recover public key: %v\n", err)
-		return false
+		return ""
 	}
 
-	recoveredAddress := crypto.PubkeyToAddress(*recoveredPubKey)
-	expectedAddress := crypto.PubkeyToAddress(*publicKey)
-
-	return recoveredAddress == expectedAddress
+	return crypto.PubkeyToAddress(*recoveredPubKey).String()
 }
