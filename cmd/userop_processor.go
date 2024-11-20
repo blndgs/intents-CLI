@@ -57,51 +57,43 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 		chainIDs[opIdx] = nodes[chainMoniker].ChainID
 	}
 
-	cachedHashes := initHashes(userOps, hashes, chainIDs, entrypointAddr)
-
 	return &UserOpProcessor{
 		Nodes:          nodes,
 		BundlerURL:     bundlerURL,
 		EntrypointAddr: entrypointAddr,
 		Signer:         signer,
 		ProvidedHashes: hashes,
-		CachedHashes:   cachedHashes,
+		CachedHashes:   make([]common.Hash, 0, len(userOps)),
 		ChainIDs:       chainIDs,
 		ChainMonikers:  chainMonikers,
 	}
 }
 
-func initHashes(userOps []*model.UserOperation, providedHashes []common.Hash, chainIDs []*big.Int, entrypointAddr common.Address) []common.Hash {
-	cachedHashes := make([]common.Hash, 0, len(userOps))
-
-	// set the userOps providedHashes
+func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) {
 	for i, op := range userOps {
 		var hash common.Hash
-		if len(providedHashes) > i && providedHashes[i] != (common.Hash{}) {
+		if len(p.ProvidedHashes) > i && p.ProvidedHashes[i] != (common.Hash{}) {
 			// use the provided hash
-			hash = providedHashes[i]
+			hash = p.ProvidedHashes[i]
+			fmt.Printf("Provided UserOp hash: %s for ChainID: %s\n", hash, p.ChainIDs[i])
 		} else {
+			if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
+				if err := p.Set4337Nonce(op, p.ChainMonikers[i]); err != nil {
+					panic(fmt.Errorf("failed setting EIP-4337 nonce: %w", err))
+				}
+			}
+
 			// compute the hash
-			hash = op.GetUserOpHash(entrypointAddr, chainIDs[i])
+			hash = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i])
+			fmt.Printf("Generated UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
 		}
-		cachedHashes = append(cachedHashes, hash)
+		p.CachedHashes = append(p.CachedHashes, hash)
 	}
-	return cachedHashes
 }
 
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
+	p.setOpHashes(userOps, submissionAction)
 	println()
-	for opIdx, op := range userOps {
-		chainMoniker := p.ChainMonikers[opIdx]
-
-		if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
-			if err := p.Set4337Nonce(op, chainMoniker); err != nil {
-				return err
-			}
-		}
-
-		fmt.Printf("UserOp hash: %s for %s:%s chain\n", p.CachedHashes[opIdx], chainMoniker, p.ChainIDs[opIdx])
-	}
 	if len(userOps) > 1 {
 		// print the aggregate xChain hash
 		fmt.Printf("Aggregate xChain hash: %s\n", userop.GenXHash(p.CachedHashes))
