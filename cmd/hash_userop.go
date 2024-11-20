@@ -1,9 +1,6 @@
 package cmd
 
 import (
-	"fmt"
-	"math/big"
-
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/spf13/cobra"
@@ -30,9 +27,7 @@ var HashUserOpCmd = &cobra.Command{
 
 		providedHashes := utils.GetHashes(cmd)
 
-		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
-		genHashes := initHashes(userOps, providedHashes, []*big.Int{nodes[config.DefaultRPCURLKey].ChainID}, entrypointAddr)
-
-		fmt.Printf("\nUserOp hash: %s for %s:%s chain\n\n", genHashes[0], chainMonikers[0], nodes[config.DefaultRPCURLKey].ChainID)
+		p := NewUserOpProcessor(userOps, nodes, "", entrypointAddr, nil, providedHashes, nil)
+		p.setOpHashes(userOps, Offline)
 	},
 }
