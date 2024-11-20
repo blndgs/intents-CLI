@@ -86,6 +86,15 @@ func getEtherMsgHash(messageHash common.Hash) common.Hash {
 	return crypto.Keccak256Hash(message)
 }
 
+// CondResetSignature resets the signature of UserOperations if the signature is invalid.
+func CondResetSignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) {
+	if !VerifySignature(publicKey, userOps, hashes) {
+		for _, op := range userOps {
+			op.Signature = nil
+		}
+	}
+}
+
 // VerifySignature verifies the signature of one or multiple UserOperations.
 func VerifySignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) bool {
 	if len(userOps) == 0 {

@@ -3,7 +3,6 @@ package cmd
 
 import (
 	"context"
-	"encoding/hex"
 	"fmt"
 	"math/big"
 
@@ -116,7 +115,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	fmt.Printf("\nEntrypoint handleOps callData: \n%s\n\n", callData)
 
 	if len(userOps[0].Signature) == 65 {
-		userop.VerifySignature(p.Signer.PublicKey, userOps, p.CachedHashes)
+		userop.CondResetSignature(p.Signer.PublicKey, userOps, p.CachedHashes)
 	}
 
 	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
