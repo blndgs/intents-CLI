@@ -17,7 +17,7 @@ var HashUserOpCmd = &cobra.Command{
 	Short: "Print the userOp's hash",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodes, _, entrypointAddr, _ := config.ReadConf()
+		nodes, _, entrypointAddr, _ := config.ReadConf(false)
 
 		// Single userOp should be returned
 		userOps := utils.GetUserOps(cmd)

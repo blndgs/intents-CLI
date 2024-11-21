@@ -39,7 +39,7 @@ const DefaultRPCURLKey = "default"
 // ReadConf reads configuration from a .env file and initializes
 // necessary variables like node URLs, signer, bundler URL, and entry point address.
 // It returns these values and logs configuration details.
-func ReadConf() (NodesMap, string, common.Address, *signer.EOA) {
+func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA) {
 	const signerPrvKey = "SIGNER_PRIVATE_KEY"
 	const bundlerUrl = "BUNDLER_URL"
 	const epAddr = "ENTRYPOINT_ADDR"
@@ -82,12 +82,14 @@ func ReadConf() (NodesMap, string, common.Address, *signer.EOA) {
 	bundlerURL := viper.GetString(bundlerUrl)
 	entryPointAddr := common.HexToAddress(viper.GetString(epAddr))
 
-	fmt.Printf("Signer private key: %s\n", hexutil.Encode(crypto.FromECDSA(s.PrivateKey)))
-	fmt.Printf("Public key: %s\n", hexutil.Encode(crypto.FromECDSAPub(s.PublicKey))[4:])
-	fmt.Printf("Address: %s\n", s.Address)
-	fmt.Printf("Entrypoint Address: %s\n", entryPointAddr)
-	for moniker := range nodeURLs {
-		fmt.Printf("Node moniker: %s url: %s\n", moniker, nodeURLs[moniker].URLStr)
+	if !quiet {
+		fmt.Printf("Signer private key: %s\n", hexutil.Encode(crypto.FromECDSA(s.PrivateKey)))
+		fmt.Printf("Public key: %s\n", hexutil.Encode(crypto.FromECDSAPub(s.PublicKey))[4:])
+		fmt.Printf("Address: %s\n", s.Address)
+		fmt.Printf("Entrypoint Address: %s\n", entryPointAddr)
+		for moniker := range nodeURLs {
+			fmt.Printf("Node moniker: %s url: %s\n", moniker, nodeURLs[moniker].URLStr)
+		}
 	}
 
 	return nodeURLs, bundlerURL, entryPointAddr, s

@@ -2,6 +2,8 @@
 package cmd
 
 import (
+	"fmt"
+
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/spf13/cobra"
@@ -17,7 +19,7 @@ var SignUserOpCmd = &cobra.Command{
 	Short: "Sign userOps with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf()
+		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf(false)
 		userOps := utils.GetUserOps(cmd)
 		hashes := utils.GetHashes(cmd)
 		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))

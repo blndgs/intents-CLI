@@ -17,7 +17,7 @@ var SendUserOpCmd = &cobra.Command{
 	Short: "Sign and send userOps with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf()
+		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf(false)
 		userOps := utils.GetUserOps(cmd)
 		hashes := utils.GetHashes(cmd)
 		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))

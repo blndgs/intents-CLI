@@ -32,7 +32,7 @@ var OnChainUserOpCmd = &cobra.Command{
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf()
+		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf(false)
 		userOps := utils.GetUserOps(cmd)
 		hashes := utils.GetHashes(cmd)
 		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
