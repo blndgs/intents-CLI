@@ -87,7 +87,10 @@ func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submission
 			hash = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i])
 			fmt.Printf("Generated UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
 		}
-		p.CachedHashes = append(p.CachedHashes, hash)
+		// idempotent append
+		if len(p.CachedHashes) <= i || p.CachedHashes[i] != hash {
+			p.CachedHashes = append(p.CachedHashes, hash)
+		}
 	}
 }
 
