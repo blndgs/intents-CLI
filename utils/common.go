@@ -9,6 +9,8 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/model"
@@ -30,6 +32,22 @@ func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("h", "", "List of other cross-chain user operations hashes")
 	cmd.Flags().String("c", "", "List of other user operations' Chains")
 	cmd.Flags().String("s", "", "Single signature")
+}
+
+func sanitizeUserOpJSON(userOpJSON string) string {
+	// Trim leading and trailing whitespace and control characters
+	userOpJSON = strings.TrimFunc(userOpJSON, func(r rune) bool {
+		return unicode.IsSpace(r) || unicode.IsControl(r)
+	})
+
+	// Remove BOM character if present
+	userOpJSON = strings.TrimPrefix(userOpJSON, "\uFEFF")
+
+	if !utf8.ValidString(userOpJSON) {
+		userOpJSON = strings.ToValidUTF8(userOpJSON, "")
+	}
+
+	return userOpJSON
 }
 
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
@@ -55,6 +73,8 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	} else {
 		panic("invalid user operation input")
 	}
+
+	userOpInput = sanitizeUserOpJSON(userOpInput)
 
 	// Unmarshal the JSON into an interface{} to process callData fields
 	var data interface{}
