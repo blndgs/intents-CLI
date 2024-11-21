@@ -80,7 +80,7 @@ go run main.go sign --c eth --u '<userOperation>'
 
 #### Using the `--c` Flag
 
-The `--c` flag specifies which chain configuration to use when signing UserOperations. This is particularly important for cross-chain transactions where the UserOperation might interact with multiple chains.
+The `--c` flag specifies which chain configuration to use when signing UserOperations. This applies for cross-chain transactions where the UserOperation might interact with multiple chains.
 
 ```bash
 # For BSC operations
@@ -199,12 +199,14 @@ intents-cli [command] --u ./sample.json
 - `send`: Submit a userOp to the node's EVM Entrypoint handleOps.
 - `sign-send` : Sign and send a userOp.
 - `hash`: Generate the hash of a userOp.
+- `recover`: Recover the signer address from a hash and a signature value. Supports super signatures with cross-chain metadata.
 - `on-chain`: Submit a userOp to the node's EVM Entrypoint handleOps bypassing the Bundler.
 
 ### Available Flags
 
 - `--c`: Optional chain moniker(s) for multiple user operations. The moniker(s) apply to user operations starting from the second one. The first operation is always mapped to the `DEFAULT` moniker.
-
+- `--s`: Signature value as a hex string. Applies to the recover operation.
+- `--h`: User operation hash as a hex string. Applies to the hash and recover operations.
 - `--u`: User operation JSON as string or path to a JSON file.
 
 ### Example
@@ -280,6 +282,16 @@ go run main.go sign --c bsc --u '[
     "signature":"0x"
   }
 ]'
+```
+
+4 - Recover a signature with a hash and a signature value:
+```shell
+go run main.go recover --h 0xbaf051ece3f4e7a5a6b675837ed16c6d6fddc3c8d956b646492c748998b1dbd8 --s 0x148f3b9ebb60af1813ddf011ee8389d69069229c65e15d8b1060000c56709d3339028172947572e00ab630b5d6838af17d1bc2c02a75cb7010a961dcac6ba33e1bffff01007b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c2022616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c2022636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c2022746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c2022616d6f756e74223a7b2276616c7565223a2244304a41227d2c2022636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d02fffffe2728a6b72b2f3eb4739ac1555905f1c7ae0801d1a5fb473e94bd8887f92ba2
+```
+Result:
+```
+XChain hash: 0x01ad844c66e831014f1ed96922a517b5cf2b95357f705a728ac3571fae180704
+XChain Signature is valid for recovered: 0x1E13289c8d59947b5959E74415F68Ef56805ffeC
 ```
 
 Example output:
