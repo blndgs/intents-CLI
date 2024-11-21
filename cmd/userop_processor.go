@@ -170,19 +170,37 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 		// Marshal signedOp into JSON
 		utils.PrintSignedOpJSON(userOps[0])
 	} else {
+		p.setXCallDataValues(userOps)
+		for i, op := range userOps {
+			fmt.Printf("\nSigned x-chain userOp %d:\n%s\n", i, op)
+			fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
+		}
+
 		cpyOps := make([]*model.UserOperation, len(userOps))
 		for i, op := range userOps {
 			cpyOps[i] = new(model.UserOperation)
 			*cpyOps[i] = *op
 		}
-		p.setXCallDataValues(cpyOps)
-
+		p.moveXCallDataValues(cpyOps)
 		for i, op := range cpyOps {
-			fmt.Printf("\nSigned userOp %d:\n%s\n", i, op)
-			fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
-
+			fmt.Printf("\nXChain UserOp with xCallData value appended to the signature value: %d:\n", i)
 			utils.PrintSignedOpJSON(op)
 		}
+
+func (p *UserOpProcessor) moveXCallDataValues(userOps []*model.UserOperation) {
+	if len(userOps) != 2 {
+		panic("only 2 UserOperations are supported")
+	}
+	if !userOps[0].IsCrossChainOperation() || !userOps[1].IsCrossChainOperation() {
+		panic("only cross-chain UserOperations are supported")
+	}
+
+	// Append the xCallData values to the UserOperations' signature value and set an empty CallData field value
+	if err := userOps[0].SetEVMInstructions([]byte{}); err != nil {
+		panic(fmt.Errorf("failed setting the sourceOp EVM instructions: %w", err))
+	}
+	if err := userOps[1].SetEVMInstructions([]byte{}); err != nil {
+		panic(fmt.Errorf("failed setting the destOp EVM instructions: %w", err))
 	}
 }
 
@@ -195,20 +213,15 @@ func (p *UserOpProcessor) setXCallDataValues(userOps []*model.UserOperation) {
 	}
 
 	var err error
-	// append the xCallData values to the UserOperations' signature value and set an empty CallData field value
-	xCallDataValue, err := userOps[0].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[1], true)
-	userOps[0].CallData = []byte{}
+	userOps[0].CallData, err = userOps[0].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[1], true)
 	if err != nil {
 		panic(fmt.Errorf("failed encoding the sourceOp xCallData value: %w", err))
 	}
-	userOps[0].Signature = append(userOps[0].Signature, xCallDataValue...)
 
-	xCallDataValue, err = userOps[1].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[0], false)
-	userOps[1].CallData = []byte{}
+	userOps[1].CallData, err = userOps[1].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[0], false)
 	if err != nil {
 		panic(fmt.Errorf("failed encoding the destOp xCallData value: %w", err))
 	}
-	userOps[1].Signature = append(userOps[1].Signature, xCallDataValue...)
 }
 
 func (p *UserOpProcessor) sendUserOp(signedUserOp *model.UserOperation) {

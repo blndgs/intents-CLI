@@ -234,13 +234,28 @@ func PrintSignedOpJSON(userOp *model.UserOperation) {
 	}
 
 	// Print signed Op JSON
-	fmt.Println("Signed UserOp in JSON:", string(jsonBytes))
+	if userOp.IsCrossChainOperation() && len(userOp.Signature) > 65 {
+		_, err := model.ParseCrossChainData(userOp.Signature[65:])
+		if err != nil {
+			// The embedded userOp is appended to the signature value
+			fmt.Println("Signed Aggregate XChain UserOp in JSON:", string(jsonBytes))
+		} else {
+			// xCallData value is appended to the signature value
+			fmt.Println("Signed XChain UserOp in JSON:", string(jsonBytes))
+		}
+	} else if userOp.IsCrossChainOperation() {
+		fmt.Println("Signed XChain UserOp in JSON:", string(jsonBytes))
+	} else {
+		fmt.Println("Signed UserOp in JSON:", string(jsonBytes))
+	}
 }
 
 // PrintPostIntentSolutionSignature prints the signature + hex encoded intent JSON (calldata).
 func PrintPostIntentSolutionSignature(userOp *model.UserOperation) {
-	fmt.Printf("\nSignature value after solution:\n%s\n",
-		hexutil.Encode(userOp.Signature)+hex.EncodeToString(userOp.CallData))
+	if len(userOp.Signature) >= 65 {
+		fmt.Printf("\nSignature value after solution:\n%s\n",
+			hexutil.Encode(userOp.Signature[:65])+hex.EncodeToString(userOp.CallData))
+	}
 }
 
 // IsValidHex checks if a string is a valid hexadecimal representation.
