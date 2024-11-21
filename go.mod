@@ -3,14 +3,14 @@ module github.com/blndgs/intents-sdk
 go 1.21.5
 
 require (
-	github.com/blndgs/model v0.49.0
+	github.com/blndgs/model v0.51.0
 	github.com/ethereum/go-ethereum v1.11.5
-	github.com/golang/protobuf v1.5.3
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.18.2
 	github.com/stackup-wallet/stackup-bundler v0.6.32
 	github.com/stretchr/testify v1.9.0
+	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8
 )
 
 require (
@@ -64,7 +64,6 @@ require (
 	go.uber.org/atomic v1.9.0 // indirect
 	go.uber.org/multierr v1.9.0 // indirect
 	golang.org/x/crypto v0.23.0 // indirect
-	golang.org/x/exp v0.0.0-20240325151524-a685a6edb6d8 // indirect
 	golang.org/x/sys v0.20.0 // indirect
 	golang.org/x/text v0.15.0 // indirect
 	gopkg.in/ini.v1 v1.67.0 // indirect
