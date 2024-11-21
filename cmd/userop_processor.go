@@ -123,7 +123,6 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	switch submissionAction {
 	case Offline:
 
-		// TODO: Aggregate all the UserOperations into a single UserOperation
 	case BundlerSubmit:
 		// Submit to EIP-4337 bundler
 		p.sendUserOp(userOps[0])
@@ -189,6 +188,16 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 			fmt.Printf("\nXChain UserOp with xCallData value appended to the signature value: %d:\n", i)
 			utils.PrintSignedOpJSON(op)
 		}
+
+		// Aggregate the UserOperations
+		if err := userOps[0].Aggregate(userOps[1]); err != nil {
+			panic(fmt.Errorf("failed to aggregate userOps: %w", err))
+		}
+
+		fmt.Printf("\nAggregated userOp:\n%s\n", userOps[0])
+		utils.PrintSignedOpJSON(userOps[0])
+	}
+}
 
 func (p *UserOpProcessor) moveXCallDataValues(userOps []*model.UserOperation) {
 	if len(userOps) != 2 {
