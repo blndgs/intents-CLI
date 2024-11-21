@@ -16,6 +16,8 @@ import (
 // SignUserOperations is a helper function to sign one or multiple UserOperations.
 func SignUserOperations(signer *signer.EOA, hashes []common.Hash, userOps []*model.UserOperation) error {
 	messageHash := GenXHash(hashes)
+	signerAddr := signer.Address.String()
+	fmt.Printf("Signing UserOperations with address: %s\n", signerAddr)
 	signature, err := GenerateSignature(messageHash, signer.PrivateKey)
 	if err != nil {
 		return err

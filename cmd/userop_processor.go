@@ -136,7 +136,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 
 	// Print signature only when the userOp is an Intent operation
-	if userOps[0].HasIntent() {
+	if userOps[0].HasIntent() && len(userOps) == 1 {
 		utils.PrintPostIntentSolutionSignature(userOps[0])
 	}
 
@@ -174,8 +174,9 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 	} else {
 		p.setXCallDataValues(userOps)
 		for i, op := range userOps {
-			fmt.Printf("\nSigned x-chain userOp %d:\n%s\n", i, op)
+			fmt.Printf("\nXChain userOp with xCallData value in the calldata field %d:\n%s\n", i, op)
 			fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
+			utils.PrintSignedOpJSON(op)
 		}
 
 		cpyOps := make([]*model.UserOperation, len(userOps))
