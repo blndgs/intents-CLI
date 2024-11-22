@@ -26,6 +26,7 @@ func main() {
 	rootCmd.AddCommand(cmd.SignUserOpCmd)
 	rootCmd.AddCommand(cmd.OnChainUserOpCmd)
 	rootCmd.AddCommand(cmd.RecoverSignerCmd)
+	rootCmd.AddCommand(cmd.ExtractUserOpCmd)
 	// Execute the root command
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)
