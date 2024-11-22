@@ -38,7 +38,11 @@ var ExtractUserOpCmd = &cobra.Command{
 
 		// Print the formerly aggregated userOp and the extracted userOp
 		fmt.Printf("Source userOp:\n%s\n", userOps[0])
+		utils.PrintSignedOpJSON(userOps[0])
 
-		fmt.Printf("Extracted userOp:\n%s\n", embeddedOp)
+		fmt.Printf("\n===================== Extracted userOp =====================>\n\n")
+
+		fmt.Printf("%s\n", embeddedOp)
+		utils.PrintSignedOpJSON(embeddedOp)
 	},
 }
