@@ -17,7 +17,7 @@ var HashUserOpCmd = &cobra.Command{
 	Short: "Print the userOp's hash",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
-		nodes, _, entrypointAddr, _ := config.ReadConf(false)
+		nodes, _, entrypointAddr, eoaSigner := config.ReadConf(false)
 
 		// Single userOp should be returned
 		userOps := utils.GetUserOps(cmd)
@@ -25,9 +25,11 @@ var HashUserOpCmd = &cobra.Command{
 			panic("Only a single userOp is supported")
 		}
 
+		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
+
 		providedHashes := utils.GetHashes(cmd)
 
-		p := NewUserOpProcessor(userOps, nodes, "", entrypointAddr, nil, providedHashes, nil)
+		p := NewUserOpProcessor(userOps, nodes, "", entrypointAddr, eoaSigner, providedHashes, chainMonikers)
 		p.setOpHashes(userOps, Offline)
 	},
 }
