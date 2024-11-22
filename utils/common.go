@@ -276,7 +276,7 @@ func PrintSignedOpJSON(userOp *model.UserOperation) {
 			fmt.Println("Signed Aggregate XChain UserOp in JSON:", string(jsonBytes))
 		} else {
 			// xCallData value is appended to the signature value
-			fmt.Println("Signed XChain UserOp in JSON:", string(jsonBytes))
+			fmt.Println(string(jsonBytes))
 		}
 	} else if userOp.IsCrossChainOperation() {
 		fmt.Println("Signed XChain UserOp in JSON:", string(jsonBytes))
