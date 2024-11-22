@@ -31,7 +31,10 @@ func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
 	cmd.Flags().String("h", "", "List of other cross-chain user operations hashes")
 	cmd.Flags().String("c", "", "List of other user operations' Chains")
-	cmd.Flags().String("s", "", "Single signature")
+
+	if err := cmd.MarkFlagRequired("u"); err != nil {
+		panic(err)
+	}
 }
 
 func sanitizeUserOpJSON(userOpJSON string) string {
@@ -239,14 +242,18 @@ func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int
 			parsedChains = append(parsedChains, chain)
 		} else {
 			// Check if the chain is a chain ID
+			var found bool
 			for moniker, node := range nodesMap {
 				// Check if the chain ID matches the chain ID of the node
 				if node.ChainID.String() == chain {
 					parsedChains = append(parsedChains, moniker)
-					continue
+					found = true
+					break
 				}
 			}
-			panic(fmt.Errorf("chain %s is not found in the configuration map nodes", chain))
+			if !found {
+				panic(fmt.Errorf("chain %s not found in the nodes configuration", chain))
+			}
 		}
 	}
 
