@@ -13,8 +13,8 @@ func init() {
 
 // SendUserOpCmd represents the command to send user operations.
 var SendUserOpCmd = &cobra.Command{
-	Use:   "sign-send",
-	Short: "Sign and send userOps with JSON input",
+	Use:   "send",
+	Short: "Send userOps with JSON input",
 	Run: func(cmd *cobra.Command, args []string) {
 		// Read configuration and initialize necessary components.
 		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf(false)

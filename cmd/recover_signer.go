@@ -11,7 +11,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// init initializes the hash command and adds it to the root command.
+// init initializes the recover command and adds it to the root command.
 func init() {
 	utils.AddCommonFlags(RecoverSignerCmd)
 }

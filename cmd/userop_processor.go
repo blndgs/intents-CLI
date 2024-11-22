@@ -114,7 +114,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 
 	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
-		p.signUserOps(userOps)
+		p.signAndPrintUserOps(userOps)
 	} else {
 		// Print JSON for verified userOp signature
 		utils.PrintSignedOpJSON(userOps[0])
@@ -154,7 +154,14 @@ func (p *UserOpProcessor) Set4337Nonce(op *model.UserOperation, chainMoniker str
 	return nil
 }
 
-func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
+// signAndPrintUserOps signs the provided UserOperations and prints the signed
+// UserOperations.
+// For multiple UserOperations, it prints the UserOperations with xCallData
+// values appended to the signature, enabling on-chain execution or simulation
+// without permanent effects.
+// It then prepares the userOperations for sending to the bundler and solver by
+// aggregating the UserOperations and prints the aggregated UserOperation.
+func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) {
 	if p.BundlerURL == "" {
 		panic("bundler URL is not set")
 	}
