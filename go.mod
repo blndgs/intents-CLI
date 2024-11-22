@@ -3,8 +3,8 @@ module github.com/blndgs/intents-sdk
 go 1.21.5
 
 require (
-	github.com/blndgs/model v0.51.0
-	github.com/ethereum/go-ethereum v1.11.5
+	github.com/blndgs/model v0.52.0
+	github.com/ethereum/go-ethereum v1.11.6
 	github.com/pkg/errors v0.9.1
 	github.com/spf13/cobra v1.6.1
 	github.com/spf13/viper v1.18.2
