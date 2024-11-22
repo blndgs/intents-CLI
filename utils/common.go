@@ -40,6 +40,16 @@ func sanitizeUserOpJSON(userOpJSON string) string {
 		return unicode.IsSpace(r) || unicode.IsControl(r)
 	})
 
+	// This will match quoted strings followed by colon; presumes that whitespace is not allowed in field names
+	fieldNameRegex := `"([^"]+)":`
+
+	// To clean up spaces in field names but preserve the values:
+	userOpJSON = regexp.MustCompile(fieldNameRegex).ReplaceAllStringFunc(userOpJSON, func(match string) string {
+		// Remove spaces from the field name part while preserving the quotes and colon
+		cleaned := regexp.MustCompile(`\s+`).ReplaceAllString(match, "")
+		return cleaned
+	})
+
 	// Remove BOM character if present
 	userOpJSON = strings.TrimPrefix(userOpJSON, "\uFEFF")
 
@@ -55,30 +65,29 @@ func sanitizeUserOpJSON(userOpJSON string) string {
 // before unmarshaling to ensure proper Protobuf formatting.
 func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	userOpInput, _ := cmd.Flags().GetString("u")
-
 	if userOpInput == "" {
 		panic("user operation JSON is required")
 	}
 	userOpInput = strings.TrimSpace(userOpInput)
 
-	var userOpJSON string
+	var jsonContent string
 	if strings.HasPrefix(userOpInput, "{") || strings.HasPrefix(userOpInput, "[") {
-		userOpJSON = userOpInput
+		jsonContent = userOpInput
 	} else if fileExists(userOpInput) {
 		fileContent, err := os.ReadFile(userOpInput)
 		if err != nil {
 			panic(fmt.Errorf("error reading user operation file: %v", err))
 		}
-		userOpJSON = string(fileContent)
+		jsonContent = string(fileContent)
 	} else {
 		panic("invalid user operation input")
 	}
 
-	userOpInput = sanitizeUserOpJSON(userOpInput)
+	sanitizedJSON := sanitizeUserOpJSON(jsonContent)
 
 	// Unmarshal the JSON into an interface{} to process callData fields
 	var data interface{}
-	dec := json.NewDecoder(strings.NewReader(userOpJSON))
+	dec := json.NewDecoder(strings.NewReader(sanitizedJSON))
 	dec.UseNumber()
 	if err := dec.Decode(&data); err != nil {
 		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
