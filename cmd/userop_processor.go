@@ -174,9 +174,8 @@ func (p *UserOpProcessor) signUserOps(userOps []*model.UserOperation) {
 	} else {
 		p.setXCallDataValues(userOps)
 		for i, op := range userOps {
-			fmt.Printf("\nXChain userOp with xCallData value in the calldata field %d:\n%s\n", i, op)
+			fmt.Printf("\nXChain userOp %d:\n%s\n", i, op)
 			fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
-			utils.PrintSignedOpJSON(op)
 		}
 
 		cpyOps := make([]*model.UserOperation, len(userOps))
