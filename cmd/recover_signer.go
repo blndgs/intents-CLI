@@ -61,19 +61,8 @@ var RecoverSignerCmd = &cobra.Command{
 		}
 
 		recoverSigner(opHash, op.Signature[:op.GetSignatureEndIdx()], eoaSigner.Address.String())
+		displayUserOpStatus(op, chainID)
 	},
-}
-
-func isAggregate(op *model.UserOperation) bool {
-	if !op.IsCrossChainOperation() || op.HasSignatureExact() {
-		return false
-	}
-	cpOp := *op
-	if _, err := cpOp.ExtractEmbeddedOp(); err != nil {
-		return false
-	}
-	fmt.Printf("Aggregate userOp detected.\n")
-	return true
 }
 
 // getUserOpHash restores the UserOperation hash by moving the intent JSON
@@ -109,8 +98,8 @@ func getUserOpHash(op *model.UserOperation, entryPointAddr common.Address, chain
 	}
 
 	// Validate the signature
-	if isAggregate(op) {
-		// Check if the callData field has xData appended
+	if userop.IsAggregate(op) {
+		// Check if the callData field contains xData
 		xData, err := model.ParseCrossChainData(cpOp.CallData)
 		if err != nil {
 			fmt.Printf("No xData found in the callData or the signature. Cannot recover.\n")
@@ -175,4 +164,18 @@ func recoverSigner(opHash common.Hash, signature []byte, eoaSigner string) {
 		fmt.Printf("\nRecovered signer does not match the configured EOA signer: %s\n", eoaSigner)
 		fmt.Printf("                                                             *\n")
 	}
+}
+
+func displayUserOpStatus(op *model.UserOperation, chainID *big.Int) {
+	state := userop.DetermineState(op)
+
+	// Create a nicely formatted status display
+	fmt.Printf("\n=== UserOperation Status ===\n")
+	//fmt.Printf("State: %s\n", state.Format())
+	fmt.Printf("%s\n", state.FormatWithDetail(
+		fmt.Sprintf("Chain ID: %s", chainID),
+	))
+
+	// Print separator
+	//fmt.Println(strings.Repeat("-", 30))
 }
