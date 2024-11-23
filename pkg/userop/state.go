@@ -29,10 +29,10 @@ func (s State) String() string {
 	return [...]string{
 		"Unsigned UserOp (invalid or missing signature)",
 		"Conventional ERC-4337 UserOp",
-		"Intent UserOp awaiting solution: cannot validate signature on-chain.",
+		"Intent UserOp awaiting solution: cannot validate signature on-chain. Append the callData value to the signature ECDSA payload for on-chain validation.",
 		"Intent UserOp with empty solution: on-chain signature validation is possible.",
 		"Intent UserOp with EVM solution: on-chain signature validation is possible.",
-		"Cross-chain UserOp awaiting solution: cannot validate signature on-chain.",
+		"Cross-chain UserOp awaiting solution: cannot validate signature on-chain. Append the callData value to the signature ECDSA payload for on-chain validation.",
 		"Cross-chain UserOp with signature-embedded XData: on-chain signature validation is possible.",
 		"Cross-chain UserOp with EVM solution: on-chain signature validation is possible.",
 		"Aggregate cross-chain UserOp: cannot validate signature on-chain.",
@@ -110,7 +110,6 @@ func IsAggregate(op *model.UserOperation) bool {
 	if _, err := cpOp.ExtractEmbeddedOp(); err != nil {
 		return false
 	}
-	fmt.Printf("Aggregate userOp detected.\n")
 	return true
 }
 

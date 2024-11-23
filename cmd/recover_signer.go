@@ -171,11 +171,7 @@ func displayUserOpStatus(op *model.UserOperation, chainID *big.Int) {
 
 	// Create a nicely formatted status display
 	fmt.Printf("\n=== UserOperation Status ===\n")
-	//fmt.Printf("State: %s\n", state.Format())
 	fmt.Printf("%s\n", state.FormatWithDetail(
 		fmt.Sprintf("Chain ID: %s", chainID),
 	))
-
-	// Print separator
-	//fmt.Println(strings.Repeat("-", 30))
 }
