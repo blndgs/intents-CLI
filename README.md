@@ -1,134 +1,81 @@
 # intents-cli
 
-A CLI tool for signing and executing user operations.
+A CLI tool for signing and executing user operations with advanced cross-chain support.
+
+## Features
+
+- Sign single or multiple UserOperations
+- Support for cross-chain and aggregated UserOperations
+- Multi-chain configuration via chain ID or moniker
+- Generate UserOperation hashes and aggregate cross-chain hashes
+- Extract embedded UserOperations from aggregates
+- Recover signers from UserOperation signatures
+- Output EntryPoint handleOps callData
+- Support for major EVM chains (ETH, BSC, Polygon)
+
+## Building and Setup
 
 ### Building the Application
-
-To build the application, run:
 
 ```sh
 make build
 ```
 
-## Features
+## Configuration
 
-- Sign single or multiple UserOperations
-- Support for cross-chain UserOperations
-- Chain-specific configuration via `--c` flag
-- Generates UserOperation hashes and aggregate cross-chain hashes
-- Outputs EntryPoint handleOps callData
-- Supports various chain configurations (ETH, BSC, Polygon)
-
-### Configuration
-
-Before running this, your `.env` file should be set up with the necessary configurations like `ETH_NODE_URL`, `SIGNER_PRIVATE_KEY`, etc.
-Checkout `.env.example` for the reference.
-
-## Chain Configuration and Cross-Chain Operations
-
-### Environment Variables
+Set up your .env file with required configurations. Checkout `.env.example` for the reference. Example:
 
 ```env
-# Signer Configuration
-SIGNER_PRIVATE_KEY=********************************
+# EOA Signer
+SIGNER_PRIVATE_KEY=<your-private-key>
 
 # Chain RPC Endpoints
-# Polygon (Chain ID: 137)
-ETH_NODE_URL_POLYGON_DEFAULT=https://polygon.gateway.tenderly.co/**************
-
-# Binance Smart Chain (Chain ID: 56)
-ETH_NODE_URL=https://bsc-mainnet.nodereal.io/*****************
+ETH_NODE_URL_POLYGON_DEFAULT=https://polygon.rpc...  # Chain ID: 137
+ETH_NODE_URL_BSC=https://bsc.rpc...                  # Chain ID: 56
+ETH_NODE_URL_ETH=https://eth.rpc...                  # Chain ID: 1
+ETH_NODE_URL_VBSC890=https://virtual.bsc.rpc...      # Virtual Chain ID: 890
+ETH_NODE_URL_VETH888=https://virtual.eth.rpc...      # Virtual Chain ID: 888
 
 # Bundler Configuration
-BUNDLER_URL=https://bsc.bundler.balloondogs.network
+BUNDLER_URL=https://bundler.network
 
 # EntryPoint Contract
 ENTRYPOINT_ADDR=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
 ```
 
+## Commands
+### Available Commands
+
+- sign: Sign single or cross-chain UserOperations
+- send: Submit UserOp to EntryPoint handleOps
+- sign-send: Sign and submit in one command
+- hash: Generate UserOp hash
+- recover: Recover signer from UserOp signature
+- extract: Extract embedded UserOp from aggregate
+- on-chain: Direct submission to EntryPoint
+
+### Command Flags
+
+- --c: Chain selector by ID or moniker (e.g., "137", "bsc", "eth")
+- --s: Signature hex string for recovery
+- --h: UserOp hash hex string
+- --u: UserOperation JSON string or file path
+
 ### Chain Configuration
 
-The tool supports multiple chains through environment variables and command-line flags. Chain selection is handled via the `--c` flag, with Polygon (Chain ID: 137) serving as the default chain when no flag is specified.
+The tool supports multiple chains through environment variables and command-line flags. Chain selection is handled via 
+the `--c` flag.
+Note the common prefix `ETH_NODE_URL_` followed by the chain moniker in uppercase. 
+The moniker is used as the environment variable name or the chain ID for the `--c` flag.
+Any environment variable with the `ETH_NODE_URL_` + the "DEFAULT" moniker is selected as the first default chain configuration.
 
 #### Example Chain Moniker and IDs
 
 | Chain    | Chain ID | Chain Moniker (`--c` flag) | Environment Variable |
-|----------|----------|---------------------------|---------------------|
-| Polygon  | 137      | [default] - no flag needed| `ETH_NODE_URL_POLYGON_DEFAULT` |
-| BSC      | 56       | `bsc`                     | `ETH_NODE_URL_BSC` |
-| Ethereum | 1        | `eth`                     | `ETH_NODE_URL_ETH` |
-
-#### Usage Examples:
-```bash
-# Polygon (default chain) - no --c flag needed
-go run main.go sign --u '<userOperation>'
-
-# Polygon (default) for the first userOperation, BSC for the second user operation
-go run main.go sign --c bsc --u '[<userOperation1>, <userOperation2>]]'
-
-# Ethereum
-go run main.go sign --c eth --u '<userOperation>'
-```
-
-#### Important Notes:
-- Polygon is the default chain and doesn't require the `--c` flag
-- Chain monikers are case-sensitive
-- Each chain requires its corresponding RPC URL in the `.env` file
-```
-
-### Cross-Chain Operations
-
-#### Using the `--c` Flag
-
-The `--c` flag specifies which chain configuration to use when signing UserOperations. This applies for cross-chain transactions where the UserOperation might interact with multiple chains.
-
-```bash
-# For BSC operations
-go run main.go sign --c bsc --u '<userOperation>'
-
-# For Polygon operations
-go run main.go sign --c polygon --u '<userOperation>'
-```
-
-#### Cross-Chain UserOperation Structure
-
-When creating a UserOperation that involves cross-chain interactions, the `callData` field should specify the source and destination chain IDs:
-
-```json
-{
-  "fromAsset": {
-    "address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
-    "amount": {"value": "I4byb8EAAA=="},
-    "chainId": {"value": "iQ=="} // Base64 encoded chain ID
-  },
-  "toStake": {
-    "address": "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6",
-    "amount": {"value": "D0JA"},
-    "chainId": {"value": "OA=="} // Base64 encoded chain ID
-  }
-}
-```
-
-#### Multi-Chain Transaction Example
-
-```bash
-go run main.go sign --c bsc --u '[
-  {
-    "sender": "0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
-    "nonce": "0x1",
-    "callData": {
-      "fromAsset": {
-        "chainId": {"value": "56"}, # BSC
-        ...
-      },
-      "toStake": {
-        "chainId": {"value": "137"}, # Polygon
-        ...
-      }
-    },
-    ...
-  }
-]'
+|----------|----------|----------------------------|---------------------|
+| Polygon  | 137      | [default] - no flag needed | `ETH_NODE_URL_POLYGON_DEFAULT` |
+| BSC      | 56       | `bsc`  or 56               | `ETH_NODE_URL_BSC` |
+| Ethereum | 1        | `eth`  or 1                | `ETH_NODE_URL_ETH` |
 
 ## Usage
 
@@ -193,23 +140,149 @@ intents-cli [command] --u ./sample.json
 ]
 ```
 
-### Available Commands
+#### Usage Examples:
+```bash
+# Polygon (default chain) - no --c flag needed
+go run main.go sign --u '<userOperation>'
 
-- `sign`: Sign a single or 2 cross-chain userOps.
-- `send`: Submit a userOp to the node's EVM Entrypoint handleOps.
-- `sign-send` : Sign and send a userOp.
-- `hash`: Generate the hash of a userOp.
-- `recover`: Recover the signer address from a hash and a signature value. Supports super signatures with cross-chain metadata.
-- `on-chain`: Submit a userOp to the node's EVM Entrypoint handleOps bypassing the Bundler.
+# Polygon (default) for the first userOperation, BSC for the second user operation
+go run main.go sign --c bsc --u '[<userOperation1>, <userOperation2>]]'
 
-### Available Flags
+# Ethereum
+go run main.go sign --c eth --u '<userOperation>'
 
-- `--c`: Optional chain moniker(s) for multiple user operations. The moniker(s) apply to user operations starting from the second one. The first operation is always mapped to the `DEFAULT` moniker.
-- `--s`: Signature value as a hex string. Applies to the recover operation.
-- `--h`: User operation hash as a hex string. Applies to the hash and recover operations.
-- `--u`: User operation JSON as string or path to a JSON file.
+# Specific chain by ID: Ethereum mainnet
+intents-cli sign --c 1 --u '<userOp>'
 
-### Example
+# Cross-chain operation (Polygon -> BSC)
+intents-cli sign --c bsc --u '[<userOp1>, <userOp2>]'
+```
+
+#### Important Notes:
+- Polygon in this example configuration is the default chain and doesn't require the `--c` flag
+- Chain monikers are case-sensitive
+- Each chain requires its corresponding RPC URL in the `.env` file
+
+
+### Cross-Chain Operations
+
+#### Using the `--c` Flag
+
+The `--c` flag specifies which chain configuration to use starting with the second userOp because the default maps to 
+the first. This applies for cross-chain transactions where the UserOperation might interact with multiple chains.
+
+```bash
+# For BSC operations
+go run main.go sign --c bsc --u '<userOperation>'
+
+# For Polygon operations
+go run main.go sign --c polygon --u '<userOperation>'
+```
+
+#### Cross-Chain UserOperation Structure
+
+When creating a UserOperation that involves cross-chain interactions, the `callData` field should specify the source and destination chain IDs:
+
+```json
+{
+  "fromAsset": {
+    "address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "amount": {"value": "I4byb8EAAA=="},
+    "chainId": {"value": "iQ=="} // Base64 encoded chain ID
+  },
+  "toStake": {
+    "address": "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6",
+    "amount": {"value": "D0JA"},
+    "chainId": {"value": "OA=="} // Base64 encoded chain ID
+  }
+}
+```
+
+#### Multi-Chain userOp Example
+
+```bash
+go run main.go sign --c bsc --u '[
+  {
+    "sender": "0x8Ee0051fDb9Bb3e3Ac94faa30d31895FA9A3ADC5",
+    "nonce": "0x1",
+    "callData": {
+      "fromAsset": {
+        "chainId": {"value": "56"}, # BSC
+        ...
+      },
+      "toStake": {
+        "chainId": {"value": "137"}, # Polygon
+        ...
+      }
+    },
+    ...
+  }
+]'
+```
+
+JSON accepted also in its human readable format:
+```json
+{
+  "fromAsset": {
+    "address": "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "amount": {"value": "1000000000000000000"},
+    "chainId": {"value": "137"}
+  },
+  "toStake": {
+    "address": "0x1adB950d8bB3dA4bE104211D5AB038628e477fE6",
+    "amount": {"value": "1000000"},
+    "chainId": {"value": "56"}
+  }
+}
+```
+
+## Advanced Operations
+### Recover Signer
+#### Recover the signing address from a UserOperation:
+```
+intents-cli recover --c 137 --u '<userOp>'
+```
+Example output:
+```
+=== UserOperation Status ===
+Cross-chain UserOp awaiting solution: (Chain ID: 137)
+Signature is valid for recovered: 0x1E13289c...
+```
+### Extract Embedded UserOp
+#### Extract an embedded UserOperation from an aggregate:
+```
+intents-cli extract --u '<aggregateUserOp>'
+```
+### Example output:
+```
+Source userOp:
+[Original UserOp details]
+
+===================== Extracted userOp =====================>
+[Extracted UserOp details]
+```
+
+## Sample UserOperation Format
+### userOp
+```json
+{
+  "sender": "0x388b635c58Ee82a6748A2033f4520E6976064CE3",
+  "nonce": "0x1",
+  "initCode": "0x",
+  "callData": "0x",
+  "callGasLimit": "0xc3500",
+  "verificationGasLimit": "0x996a0",
+  "preVerificationGas": "0x99000",
+  "maxFeePerGas": "0x0",
+  "maxPriorityFeePerGas": "0x0",
+  "paymasterAndData": "0x",
+  "signature": "0x"
+}
+```
+
+
+
+## Examples
 1 - Sign a blank userOp without initcode or calldata values:
 
 ```shell
@@ -284,15 +357,33 @@ go run main.go sign --c bsc --u '[
 ]'
 ```
 
-4 - Recover a signature with a hash and a signature value:
+4 - Recover a signature from an aggregate userOp:
 ```shell
-go run main.go recover --h 0xbaf051ece3f4e7a5a6b675837ed16c6d6fddc3c8d956b646492c748998b1dbd8 --s 0x148f3b9ebb60af1813ddf011ee8389d69069229c65e15d8b1060000c56709d3339028172947572e00ab630b5d6838af17d1bc2c02a75cb7010a961dcac6ba33e1bffff01007b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c2022616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c2022636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c2022746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c2022616d6f756e74223a7b2276616c7565223a2244304a41227d2c2022636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d02fffffe2728a6b72b2f3eb4739ac1555905f1c7ae0801d1a5fb473e94bd8887f92ba2
+go run main.go recover --c 137 --u '{"sender":"0x388b635c58Ee82a6748A203
+3f4520E6976064CE3","nonce":"0xd","initCode":"0x","callData":"0xffff00fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d024e12f42aa10064ae18bc235532746765b0df7f5fd424538914a84f432bd3589cffff","callGasLimit":"0xc3500","verificationGasLimit":"0x996a0","preVerificationGas":"0x99000","maxFeePerGas":"0x0","maxPriorityFeePerGas":"0x0","paymasterAndData":"0x","signature":"0x06447f841fbeeee3f093f1a079f7a0c05873aa3d0121e7eb3f9a6c65956494d0177ac5dc8d6624478cd05e84bf6a8f514be07d9cbd734f6cc1920ab585c6d4091b01000000000000000000000000000000000000000000000000000000000000000000000000000c3500000000000009900000000000000996a002ffffec15f3b5bbcee795d9dd96fcb09bdd119ec8e178b521c5f918a8120165122dc6"}'
+Recovering for the provided chain: 137
+Other UserOp's hash: 0x4e12f42aa10064ae18bc235532746765b0df7f5fd424538914a84f432bd3589c
+UserOp hash: 0xec15f3b5bbcee795d9dd96fcb09bdd119ec8e178b521c5f918a8120165122dc6
+XChain hash from the userOp callData field: 0x228d04b77ef0719d8899742eb3ffe4f8b45cca6f64b5d32186f0036c7f62caff
+Signature is valid for recovered: 0x1E13289c8d59947b5959E74415F68Ef56805ffeC
+
+=== UserOperation Status ===
+Aggregate cross-chain UserOp: cannot validate signature on-chain. (Chain ID: 137).  Append the callData value to the signature ECDSA payload for on-chain validation.
 ```
-Result:
-```
-XChain hash: 0x01ad844c66e831014f1ed96922a517b5cf2b95357f705a728ac3571fae180704
-XChain Signature is valid for recovered: 0x1E13289c8d59947b5959E74415F68Ef56805ffeC
-```
+
+5 - Recover a signature from a cross-chain userOp:
+```shell
+go run main.go recover --c 56 --u '{"sender":"0x388b635c58Ee82a6748A2033f4520E6976064CE3","nonce":"0x0","initCode":"0x","callData":"0xffff00fb7b2266726f6d4173736574223a7b2261646472657373223a22307865656565656565656565656565656565656565656565656565656565656565656565656565656565222c22616d6f756e74223a7b2276616c7565223a22493462796238454141413d3d227d2c22636861696e4964223a7b2276616c7565223a2269513d3d227d7d2c22746f5374616b65223a7b2261646472657373223a22307831616442393530643862423364413462453130343231314435414230333836323865343737664536222c22616d6f756e74223a7b2276616c7565223a2244304a41227d2c22636861696e4964223a7b2276616c7565223a224f413d3d227d7d7d02ffffec15f3b5bbcee795d9dd96fcb09bdd119ec8e178b521c5f918a8120165122dc6","callGasLimit":"0xc3500","verificationGasLimit":"0x996a0","preVerificationGas":"0x99000","maxFeePerGas":"0x0","maxPriorityFeePerGas":"0x0","paymasterAndData":"0x","signature":"0x06447f841fbeeee3f093f1a079f7a0c05873aa3d0121e7eb3f9a6c65956494d0177ac5dc8d6624478cd05e84bf6a8f514be07d9cbd734f6cc1920ab585c6d4091b"}'
+Recovering for the provided chain: 56
+Parsed xData in the calldata field.
+UserOp hash: 0x4e12f42aa10064ae18bc235532746765b0df7f5fd424538914a84f432bd3589c
+Other UserOp's hash: 0xec15f3b5bbcee795d9dd96fcb09bdd119ec8e178b521c5f918a8120165122dc6
+XChain hash from the userOp signature field: 0x228d04b77ef0719d8899742eb3ffe4f8b45cca6f64b5d32186f0036c7f62caff
+Signature is valid for recovered: 0x1E13289c8d59947b5959E74415F68Ef56805ffeC
+
+=== UserOperation Status ===
+Cross-chain UserOp awaiting solution: cannot validate signature on-chain. (Chain ID: 56). Append the callData value to the signature ECDSA payload for on-chain validation. 
+``` 
 
 Example output:
 ```
@@ -359,6 +450,17 @@ make clean
 Run unit and race tests using:
 
 ```sh
+make run-tests
+```
+```
 make test-unit
+```
+
+```
 make test-race
+```
+
+### Linting
+```sh
+make lint
 ```
