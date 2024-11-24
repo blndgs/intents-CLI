@@ -36,13 +36,22 @@ var ExtractUserOpCmd = &cobra.Command{
 			panic(fmt.Errorf("error extracting embedded userOp: %s", err))
 		}
 
-		// Print the formerly aggregated userOp and the extracted userOp
 		fmt.Printf("Source userOp:\n%s\n", userOps[0])
+		// Print the formerly aggregated userOp and the extracted userOp
+		// set an empty EVM instruction to make it ready for on-chain validation
+		if err := userOps[0].SetEVMInstructions([]byte{}); err != nil {
+			panic(fmt.Errorf("failed setting the sourceOp EVM instructions: %w", err))
+		}
 		utils.PrintSignedOpJSON(userOps[0])
 
 		fmt.Printf("\n===================== Extracted userOp =====================>\n\n")
 
-		fmt.Printf("%s\n", embeddedOp)
+		fmt.Printf("%s\n", embeddedOp.String())
+		// Print the formerly aggregated userOp and the extracted userOp
+		// set an empty EVM instruction to make it ready for on-chain validation
+		if err := embeddedOp.SetEVMInstructions([]byte{}); err != nil {
+			panic(fmt.Errorf("failed setting the embedded EVM instructions: %w", err))
+		}
 		utils.PrintSignedOpJSON(embeddedOp)
 	},
 }
