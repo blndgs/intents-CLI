@@ -215,24 +215,6 @@ func processCallDataFields(v interface{}) {
 	}
 }
 
-// GetSignature parses the signature from the command line flag 's' and returns the byte slice.
-func GetSignature(cmd *cobra.Command) []byte {
-	signatureStr, _ := cmd.Flags().GetString("s")
-	if signatureStr == "" {
-		return nil
-	}
-
-	if !strings.HasPrefix(signatureStr, "0x") {
-		signatureStr = "0x" + signatureStr
-	}
-	signature, err := hexutil.Decode(signatureStr)
-	if err != nil {
-		panic(fmt.Errorf("error decoding signature: %v", err))
-	}
-
-	return signature
-}
-
 // GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
 func GetHashes(cmd *cobra.Command) []common.Hash {
 	hashesStr, _ := cmd.Flags().GetString("h")

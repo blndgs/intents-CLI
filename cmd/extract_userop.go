@@ -21,10 +21,6 @@ var ExtractUserOpCmd = &cobra.Command{
 		if len(providedHashes) > 0 {
 			panic("extraction does not support hash arguments")
 		}
-		signature := utils.GetSignature(cmd)
-		if len(signature) > 1 {
-			panic("extraction does not support signature arguments")
-		}
 
 		userOps := utils.GetUserOps(cmd)
 		if len(userOps) != 1 {
