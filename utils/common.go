@@ -159,12 +159,6 @@ func processNumericFields(v interface{}) {
 						}
 					} else if valTyped == "0" {
 						vv[key] = "0x0"
-					} else if valTyped == "0x" {
-						// Do nothing
-					} else if IsValidHex(valTyped) {
-						// Already valid hex, do nothing
-					} else {
-						// Leave as is
 					}
 				default:
 					// Recursively process nested structures
