@@ -37,6 +37,7 @@ func AddCommonFlags(cmd *cobra.Command) {
 	}
 }
 
+// sanitizeUserOpJSON cleans up the input JSON string
 func sanitizeUserOpJSON(userOpJSON string) string {
 	// Trim leading and trailing whitespace and control characters
 	userOpJSON = strings.TrimFunc(userOpJSON, func(r rune) bool {
@@ -64,8 +65,8 @@ func sanitizeUserOpJSON(userOpJSON string) string {
 }
 
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
-// and returns a slice of UserOperation objects. It processes the callData fields
-// before unmarshaling to ensure proper Protobuf formatting.
+// and returns a slice of UserOperation objects. It processes numeric values
+// before unmarshaling to ensure proper formatting.
 func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	userOpInput, _ := cmd.Flags().GetString("u")
 	if userOpInput == "" {
@@ -88,7 +89,7 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 
 	sanitizedJSON := sanitizeUserOpJSON(jsonContent)
 
-	// Unmarshal the JSON into an interface{} to process callData fields
+	// Unmarshal the JSON into an interface{} to process fields
 	var data interface{}
 	dec := json.NewDecoder(strings.NewReader(sanitizedJSON))
 	dec.UseNumber()
@@ -96,7 +97,10 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
 	}
 
-	// Process callData fields in the parsed data
+	// Process numeric fields
+	processNumericFields(data)
+
+	// Process callData field
 	processCallDataFields(data)
 
 	// Marshal the modified data back into JSON
@@ -106,10 +110,11 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	}
 	modifiedJSON := string(modifiedJSONBytes)
 
-	// we can unmarshal now into model.UserOperation structs
+	// Unmarshal into model.UserOperation structs
 	return unMarshalOps(modifiedJSON)
 }
 
+// unMarshalOps unmarshals the modified JSON into UserOperation structs
 func unMarshalOps(userOpJSON string) []*model.UserOperation {
 	var userOps []*model.UserOperation
 	// Determine if the input is a single userOp or an array of userOps
@@ -117,6 +122,7 @@ func unMarshalOps(userOpJSON string) []*model.UserOperation {
 		// Input is an array of userOps
 		err := json.Unmarshal([]byte(userOpJSON), &userOps)
 		if err != nil {
+			fmt.Println(userOpJSON)
 			panic(fmt.Errorf("error parsing user operations JSON: %v", err))
 		}
 	} else {
@@ -124,6 +130,7 @@ func unMarshalOps(userOpJSON string) []*model.UserOperation {
 		var userOp model.UserOperation
 		err := json.Unmarshal([]byte(userOpJSON), &userOp)
 		if err != nil {
+			fmt.Println(userOpJSON)
 			panic(fmt.Errorf("error parsing user operation JSON: %v", err))
 		}
 		userOps = append(userOps, &userOp)
@@ -131,14 +138,62 @@ func unMarshalOps(userOpJSON string) []*model.UserOperation {
 	return userOps
 }
 
-// processCallDataFields recursively processes the parsed JSON data to find and modify 'callData' fields.
+// processNumericFields converts numeric values in the UserOp fields to hex strings with '0x' prefix
+func processNumericFields(v interface{}) {
+	if vv, ok := v.(map[string]interface{}); ok {
+		for key, val := range vv {
+			if key != "initCode" && key != "paymasterAndData" && key != "signature" {
+				switch valTyped := val.(type) {
+				case json.Number:
+					bigInt, ok := new(big.Int).SetString(valTyped.String(), 10)
+					if ok {
+						vv[key] = "0x" + bigInt.Text(16)
+					}
+				case string:
+					if valTyped == "" {
+						vv[key] = "0x"
+					} else if IsNumericString(valTyped) {
+						bigInt, ok := new(big.Int).SetString(valTyped, 10)
+						if ok {
+							vv[key] = "0x" + bigInt.Text(16)
+						}
+					} else if valTyped == "0" {
+						vv[key] = "0x0"
+					} else if valTyped == "0x" {
+						// Do nothing
+					} else if IsValidHex(valTyped) {
+						// Already valid hex, do nothing
+					} else {
+						// Leave as is
+					}
+				default:
+					// Recursively process nested structures
+					processNumericFields(val)
+				}
+			}
+		}
+	}
+}
+
+// IsNumericString checks if a string represents a numeric value (big.Int)
+func IsNumericString(s string) bool {
+	_, ok := new(big.Int).SetString(s, 10)
+	return ok
+}
+
+// processCallDataFields processes the 'callData' field to ensure it is correctly formatted
 func processCallDataFields(v interface{}) {
-	switch vv := v.(type) {
-	case map[string]interface{}:
+	if vv, ok := v.(map[string]interface{}); ok {
 		for key, val := range vv {
 			if key == "callData" {
-				if callDataStr, ok := val.(string); ok && callDataStr != "" && callDataStr != "{}" && callDataStr != "0x" {
-					if !IsValidHex(callDataStr) {
+				if callDataStr, ok := val.(string); ok {
+					if callDataStr == "" || callDataStr == "{}" {
+						vv[key] = "0x"
+					} else if callDataStr == "0" {
+						vv[key] = "0x0"
+					} else if IsValidHex(callDataStr) {
+						// Already valid hex string, do nothing
+					} else {
 						// Process callDataStr using ConvJSONNum2ProtoValues
 						modifiedCallData, err := ConvJSONNum2ProtoValues(callDataStr)
 						if err == nil {
@@ -147,15 +202,13 @@ func processCallDataFields(v interface{}) {
 							panic(fmt.Errorf("error processing callData: %v", err))
 						}
 					}
-				} else if val == "{}" || val == "" {
-					vv[key] = "0x"
 				}
 			} else {
 				// Recursively process nested structures
 				processCallDataFields(val)
 			}
 		}
-	case []interface{}:
+	} else if vv, ok := v.([]interface{}); ok {
 		for _, item := range vv {
 			processCallDataFields(item)
 		}
@@ -317,13 +370,6 @@ func IsValidHex(s string) bool {
 
 // ConvJSONNum2ProtoValues converts numeric values in a JSON string to base64 encoded BigInt representations.
 // It specifically looks for fields named "value" and converts their numeric contents.
-//
-// Parameters:
-//   - jsonStr: A valid JSON string containing numeric values to be converted
-//
-// Returns:
-//   - string: The modified JSON with converted values
-//   - error: Any error encountered during processing
 func ConvJSONNum2ProtoValues(jsonStr string) (string, error) {
 	var data interface{}
 
@@ -350,9 +396,6 @@ func ConvJSONNum2ProtoValues(jsonStr string) (string, error) {
 
 // processMapValues recursively processes a decoded JSON structure, converting numeric "value" fields
 // to their base64 encoded BigInt representation.
-//
-// Parameters:
-//   - v: interface{} representing a JSON structure (can be map, slice, or primitive)
 func processMapValues(v interface{}) {
 	switch vv := v.(type) {
 	case map[string]interface{}:
@@ -367,6 +410,10 @@ func processMapValues(v interface{}) {
 					// Try to parse the string as a number
 					if _, ok := new(big.Int).SetString(num, 10); ok {
 						vv[key] = convertNumberToBase64(num)
+					} else if num == "" {
+						vv[key] = "0x"
+					} else if num == "0" {
+						vv[key] = "0x0"
 					}
 				}
 			} else {
@@ -383,12 +430,6 @@ func processMapValues(v interface{}) {
 }
 
 // convertNumberToBase64 converts a numeric string to its base64 encoded BigInt representation.
-//
-// Parameters:
-//   - numStr: string representing a numeric value
-//
-// Returns:
-//   - string: base64 encoded representation of the number
 func convertNumberToBase64(numStr string) string {
 	// Convert string number to BigInt
 	bigInt := new(big.Int)
