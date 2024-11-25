@@ -103,11 +103,13 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 
 	// Prepare callData
-	callData, err := abi.PrepareHandleOpCalldata(*userOps[0], userOps[0].Sender)
-	if err != nil {
-		return errors.Wrap(err, "error preparing userOp callData")
+	if len(userOps) == 1 {
+		callData, err := abi.PrepareHandleOpCalldata(*userOps[0], userOps[0].Sender)
+		if err != nil {
+			return errors.Wrap(err, "error preparing userOp callData")
+		}
+		fmt.Printf("\nEntrypoint handleOps callData: \n%s\n\n", callData)
 	}
-	fmt.Printf("\nEntrypoint handleOps callData: \n%s\n\n", callData)
 
 	if len(userOps[0].Signature) == 65 {
 		userop.CondResetSignature(p.Signer.PublicKey, userOps, p.CachedHashes)
@@ -195,6 +197,13 @@ func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) {
 			fmt.Printf("\nXChain UserOp with xCallData value appended to the signature value: %d:\n", i)
 			utils.PrintSignedOpJSON(op)
 		}
+
+		// Prepare handleOpsCallData
+		handleOpsCallData, err := abi.PrepareHandleOpCalldata(*userOps[1], userOps[1].Sender)
+		if err != nil {
+			panic(errors.Wrap(err, "error preparing userOp handleOpsCallData"))
+		}
+		fmt.Printf("\nHandleOps callData value (destination chain): \n%s\n\n", handleOpsCallData)
 
 		// Aggregate the UserOperations
 		if err := userOps[0].Aggregate(userOps[1]); err != nil {
