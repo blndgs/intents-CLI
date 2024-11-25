@@ -21,11 +21,6 @@ import (
 
 type NoncesMap map[string]*big.Int // moniker -> nonce
 
-var (
-	ErrInvalidJSONFormat   = fmt.Errorf("invalid JSON format")
-	ErrInvalidUserOpFormat = fmt.Errorf("invalid userOp format")
-)
-
 // AddCommonFlags adds common flags to the provided Cobra command.
 func AddCommonFlags(cmd *cobra.Command) {
 	cmd.Flags().String("u", "", "User operation JSON")
@@ -97,11 +92,11 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
 	}
 
-	// Process numeric fields
-	processNumericFields(data)
-
-	// Process callData field
+	// Process callData field first
 	processCallDataFields(data)
+
+	// Process numeric fields excluding callData
+	processNumericFields(data)
 
 	// Marshal the modified data back into JSON
 	modifiedJSONBytes, err := json.Marshal(data)
@@ -138,11 +133,10 @@ func unMarshalOps(userOpJSON string) []*model.UserOperation {
 	return userOps
 }
 
-// processNumericFields converts numeric values in the UserOp fields to hex strings with '0x' prefix
 func processNumericFields(v interface{}) {
 	if vv, ok := v.(map[string]interface{}); ok {
 		for key, val := range vv {
-			if key != "initCode" && key != "paymasterAndData" && key != "signature" {
+			if key != "callData" && key != "initCode" && key != "paymasterAndData" && key != "signature" {
 				switch valTyped := val.(type) {
 				case json.Number:
 					bigInt, ok := new(big.Int).SetString(valTyped.String(), 10)
@@ -152,13 +146,13 @@ func processNumericFields(v interface{}) {
 				case string:
 					if valTyped == "" {
 						vv[key] = "0x"
+					} else if valTyped == "0" {
+						vv[key] = "0x0"
 					} else if IsNumericString(valTyped) {
 						bigInt, ok := new(big.Int).SetString(valTyped, 10)
 						if ok {
 							vv[key] = "0x" + bigInt.Text(16)
 						}
-					} else if valTyped == "0" {
-						vv[key] = "0x0"
 					}
 				default:
 					// Recursively process nested structures
@@ -180,22 +174,13 @@ func processCallDataFields(v interface{}) {
 	if vv, ok := v.(map[string]interface{}); ok {
 		for key, val := range vv {
 			if key == "callData" {
-				if callDataStr, ok := val.(string); ok {
-					if callDataStr == "" || callDataStr == "{}" {
-						vv[key] = "0x"
-					} else if callDataStr == "0" {
-						vv[key] = "0x0"
-					} else if IsValidHex(callDataStr) {
-						// Already valid hex string, do nothing
-					} else {
-						// Process callDataStr using ConvJSONNum2ProtoValues
-						modifiedCallData, err := ConvJSONNum2ProtoValues(callDataStr)
-						if err == nil {
-							vv[key] = modifiedCallData
-						} else {
-							panic(fmt.Errorf("error processing callData: %v", err))
-						}
-					}
+				switch callDataVal := val.(type) {
+				case string:
+					processCallDataString(vv, key, callDataVal)
+				case json.Number:
+					processCallDataNumber(vv, key, callDataVal)
+				default:
+					panic(fmt.Errorf("invalid callData type: %T", val))
 				}
 			} else {
 				// Recursively process nested structures
@@ -205,6 +190,38 @@ func processCallDataFields(v interface{}) {
 	} else if vv, ok := v.([]interface{}); ok {
 		for _, item := range vv {
 			processCallDataFields(item)
+		}
+	}
+}
+
+func processCallDataString(vv map[string]interface{}, key string, callDataStr string) {
+	if callDataStr == "" || callDataStr == "{}" {
+		vv[key] = "0x"
+	} else if callDataStr == "0" {
+		vv[key] = "0x0"
+	} else if IsValidHex(callDataStr) {
+		// Already valid hex string, do nothing
+	} else {
+		// Process callDataStr using ConvJSONNum2ProtoValues
+		modifiedCallData, err := ConvJSONNum2ProtoValues(callDataStr)
+		if err == nil {
+			vv[key] = modifiedCallData
+		} else {
+			panic(fmt.Errorf("error processing callData: %v", err))
+		}
+	}
+}
+
+func processCallDataNumber(vv map[string]interface{}, key string, callDataNum json.Number) {
+	callDataStr := callDataNum.String()
+	if callDataStr == "0" {
+		vv[key] = "0x0"
+	} else {
+		bigInt, ok := new(big.Int).SetString(callDataStr, 10)
+		if ok {
+			vv[key] = "0x" + bigInt.Text(16)
+		} else {
+			panic(fmt.Errorf("invalid callData number: %v", callDataStr))
 		}
 	}
 }
