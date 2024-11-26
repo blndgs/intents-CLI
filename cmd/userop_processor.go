@@ -198,8 +198,8 @@ func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) {
 			utils.PrintSignedOpJSON(op)
 		}
 
-		// Prepare handleOpsCallData
-		handleOpsCallData, err := abi.PrepareHandleOpCalldata(*userOps[1], userOps[1].Sender)
+		// Prepare handleOpsCallData for dest op with Intent appended to the signature
+		handleOpsCallData, err := abi.PrepareHandleOpCalldata(*cpyOps[1], cpyOps[1].Sender)
 		if err != nil {
 			panic(errors.Wrap(err, "error preparing userOp handleOpsCallData"))
 		}

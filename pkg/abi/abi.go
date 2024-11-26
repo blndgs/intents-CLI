@@ -1,10 +1,12 @@
 package abi
 
 import (
+	"bytes"
 	"encoding/hex"
 	"fmt"
 	"strings"
 
+	"github.com/blndgs/intents-sdk/pkg/userop"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"
@@ -90,6 +92,17 @@ const handleOpABI = `[
 ]`
 
 func PrepareHandleOpCalldata(op model.UserOperation, beneficiary common.Address) (string, error) {
+	if len(op.CallData) > 0 && op.IsCrossChainOperation() && !userop.IsAggregate(&op) {
+		iJSON, err := op.GetIntentJSON()
+		if err == nil && bytes.Equal(op.CallData, []byte(iJSON)) {
+			// Append the Intent JSON to the signature to prepare it for on-chain execution
+			// Cross-chain operations are meaningful only when they have Intent JSON
+			if err := op.SetEVMInstructions([]byte{}); err != nil {
+				return "", fmt.Errorf("failed to set EVM instructions: %s", err)
+			}
+		}
+	}
+
 	parsedABI, err := abi.JSON(strings.NewReader(handleOpABI))
 	if err != nil {
 		return "", fmt.Errorf("failed to read abi json: %s", err)
