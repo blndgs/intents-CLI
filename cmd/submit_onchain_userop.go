@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/big"
 	"strings"
+	"time"
 
 	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/intents-sdk/utils"
@@ -70,19 +71,24 @@ func getGasParams(ctx context.Context, rpc *geth.Client) (config.GasParams, erro
 
 func createTransactionOpts(rpcClient *geth.Client, chainID *big.Int, entrypointAddr common.Address, eoaSigner *signer.EOA, signedUserOp *model.UserOperation, gasParams config.GasParams) transaction.Opts {
 	stackupUserOp := stackup_userop.UserOperation(*signedUserOp)
+
+	// Calculate gas limit with buffer for Squid operations
+	estimatedGasLimit := uint64(1000000) // From Squid response
+	gasLimitBuffer := uint64(200000)    // Additional buffer
+
 	return transaction.Opts{
 		Eth:         rpcClient,
 		EOA:         eoaSigner,
 		ChainID:     chainID,
 		EntryPoint:  entrypointAddr,
 		Batch:       []*stackup_userop.UserOperation{&stackupUserOp},
-		Beneficiary: signedUserOp.Sender, // beneficiary is the sender of the UserOperation rather than the bundler which is N/A
+		Beneficiary: signedUserOp.Sender,
 		BaseFee:     gasParams.BaseFee,
 		Tip:         gasParams.Tip,
 		GasPrice:    gasParams.GasPrice,
-		GasLimit:    0,
+		GasLimit:    estimatedGasLimit + gasLimitBuffer,
 		NoSend:      false,
-		WaitTimeout: 0,
+		WaitTimeout: 4 * time.Minute, // Increased timeout for cross-chain
 	}
 }
 
