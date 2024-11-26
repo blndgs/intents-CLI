@@ -119,11 +119,17 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 		p.signAndPrintUserOps(userOps)
 	} else {
 		// Print JSON for verified userOp signature
-		utils.PrintSignedOpJSON(userOps[0])
+		if submissionAction != DirectSubmit && submissionAction != BundlerSubmit {
+			utils.PrintSignedOpJSON(userOps[0])
+		}
 	}
 
 	switch submissionAction {
 	case Offline:
+		// Print signature only when the userOp is an Intent operation
+		if userOps[0].HasIntent() && len(userOps) == 1 {
+			utils.PrintPostIntentSolutionSignature(userOps[0])
+		}
 
 	case BundlerSubmit:
 		// Submit to EIP-4337 bundler
@@ -135,11 +141,6 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 	default:
 		return fmt.Errorf("invalid submission type: %d", submissionAction)
-	}
-
-	// Print signature only when the userOp is an Intent operation
-	if userOps[0].HasIntent() && len(userOps) == 1 {
-		utils.PrintPostIntentSolutionSignature(userOps[0])
 	}
 
 	return nil
