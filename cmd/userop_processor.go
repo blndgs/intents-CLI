@@ -76,14 +76,43 @@ func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submission
 			// use the provided hash
 			hash = p.ProvidedHashes[i]
 			fmt.Printf("Provided UserOp hash: %s for ChainID: %s\n", hash, p.ChainIDs[i])
-		} else {
-			if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
-				if err := p.Set4337Nonce(op, p.ChainMonikers[i]); err != nil {
-					panic(fmt.Errorf("failed setting EIP-4337 nonce: %w", err))
+		} else if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
+			if err := p.Set4337Nonce(op, p.ChainMonikers[i]); err != nil {
+				panic(fmt.Errorf("failed setting EIP-4337 nonce: %w", err))
+			}
+		} else if op.IsCrossChainOperation() && len(userOps) == 1 && ((submissionAction == BundlerSubmit && userop.IsAggregate(op)) || submissionAction == DirectSubmit) {
+			// if len(userOps) > 1, the xChain hash is computed after setting the xCallData values
+			var xData *model.CrossChainData
+			var err error
+			if userop.HasXDataInCallData(op) {
+				xData, err = model.ParseCrossChainData(op.CallData)
+				if err != nil {
+					panic(fmt.Errorf("failed parsing cross-chain data: %w", err))
+				}
+			} else if userop.HasXDataInSignature(op) {
+				xData, err = model.ParseCrossChainData(op.Signature[op.GetSignatureEndIdx():])
+				if err != nil {
+					panic(fmt.Errorf("failed parsing cross-chain data: %w", err))
+				}
+			} else {
+				panic(errors.New("no cross-chain xData found in cross-chain UserOp's callData or signature"))
+			}
+			hashes := make([]common.Hash, len(xData.HashList))
+			for i, h := range xData.HashList {
+				if h.IsPlaceholder {
+					hashes[i] = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[0])
+				} else {
+					hashes[i] = common.Hash(h.OperationHash)
 				}
 			}
 
-			// compute the hash
+			// compute xChain op hash
+			hash = userop.GenXHash(hashes)
+			fmt.Printf("Generated XChain UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
+		}
+
+		if hash == (common.Hash{}) {
+			// compute same-chain op hash
 			hash = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i])
 			fmt.Printf("Generated UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
 		}
