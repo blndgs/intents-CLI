@@ -134,7 +134,8 @@ func unMarshalOps(userOpJSON string) []*model.UserOperation {
 }
 
 func processNumericFields(v interface{}) {
-	if vv, ok := v.(map[string]interface{}); ok {
+	switch vv := v.(type) {
+	case map[string]interface{}:
 		for key, val := range vv {
 			if key != "callData" && key != "initCode" && key != "paymasterAndData" && key != "signature" {
 				switch valTyped := val.(type) {
@@ -159,6 +160,11 @@ func processNumericFields(v interface{}) {
 					processNumericFields(val)
 				}
 			}
+		}
+	case []interface{}:
+		// Handle arrays by processing each item
+		for _, item := range vv {
+			processNumericFields(item)
 		}
 	}
 }
