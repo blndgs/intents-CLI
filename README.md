@@ -11,7 +11,7 @@ A CLI tool for signing and executing user operations with advanced cross-chain s
 - Extract embedded UserOperations from aggregates
 - Recover signers from UserOperation signatures
 - Output EntryPoint handleOps callData
-- Support for major EVM chains (ETH, BSC, Polygon)
+- Recover the signer and print cross-chain UserOperation metadata
 
 ## Building and Setup
 
@@ -50,14 +50,13 @@ ENTRYPOINT_ADDR=0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789
 - send: Submit UserOp to EntryPoint handleOps
 - sign-send: Sign and submit in one command
 - hash: Generate UserOp hash
-- recover: Recover signer from UserOp signature
+- recover: Recover signer from UserOp signature and print cross-chain metadata
 - extract: Extract embedded UserOp from aggregate
 - on-chain: Direct submission to EntryPoint
 
 ### Command Flags
 
 - --c: Chain selector by ID or moniker (e.g., "137", "bsc", "eth")
-- --s: Signature hex string for recovery
 - --h: UserOp hash hex string
 - --u: UserOperation JSON string or file path
 
@@ -245,8 +244,20 @@ intents-cli recover --c 137 --u '<userOp>'
 Example output:
 ```
 === UserOperation Status ===
-Cross-chain UserOp awaiting solution: (Chain ID: 137)
-Signature is valid for recovered: 0x1E13289c...
+Aggregate cross-chain UserOp: cannot validate signature on-chain. (Chain ID: 137)
+Cross-chain tracing result: === Cross Chain Data Debug Output ===
+OpType: 0xffff (Valid model.CrossChainMarker) xData detected in the CallData field
+
+IntentJSON:
+  Length: 251 bytes
+  Leading Garbage: none
+  Content: {"fromAsset":{"address":"0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee","amount":{"value":"I4byb8EAAA=="},"chainId":{"value":"iQ=="}},"toStake":{"address":"0x1adB950d8bB3dA4bE104211D5AB038628e477fE6","amount":{"value":"D0JA"},"chainId":{"value":"OA=="}}}
+  Trailing Garbage: none
+
+Hash List:
+  Length: 2 entries
+  [0] Placeholder (0xFFFF)
+  [1] Operation Hash: 8a1b16de75fcd390aa6a52862139e8ef422825feeaaffb4062845ee3c83253f9
 ```
 ### Extract Embedded UserOp
 #### Extract an embedded UserOperation from an aggregate:

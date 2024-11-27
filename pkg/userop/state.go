@@ -75,7 +75,7 @@ func DetermineState(op *model.UserOperation) State {
 	return StateConventional
 }
 
-func hasXDataInCallData(op *model.UserOperation) bool {
+func HasXDataInCallData(op *model.UserOperation) bool {
 	xData, err := model.ParseCrossChainData(op.CallData)
 	if err != nil {
 		return false
@@ -83,7 +83,7 @@ func hasXDataInCallData(op *model.UserOperation) bool {
 	return validXData(xData)
 }
 
-func hasXDataInSignature(op *model.UserOperation) bool {
+func HasXDataInSignature(op *model.UserOperation) bool {
 	if !op.HasSignature() {
 		return false
 	}
@@ -158,7 +158,7 @@ func HasEVMSolution(op *model.UserOperation) bool {
 		}
 
 		if op.IsCrossChainOperation() {
-			return !hasXDataInCallData(op)
+			return !HasXDataInCallData(op)
 		}
 
 		// Same-chain userOp with intent JSON in callData?
@@ -176,11 +176,11 @@ func determineXChainState(op *model.UserOperation) State {
 		return StateXChainAggregate
 	}
 
-	xDataAppendedToSignature := hasXDataInSignature(op)
+	xDataAppendedToSignature := HasXDataInSignature(op)
 
 	// Check XData location and solution status
 	switch {
-	case hasXDataInCallData(op):
+	case HasXDataInCallData(op):
 		return StateXChainUnsolved
 	case xDataAppendedToSignature && solutionLess(op):
 		return StateXChainInSignature

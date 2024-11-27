@@ -62,6 +62,16 @@ var RecoverSignerCmd = &cobra.Command{
 
 		recoverSigner(opHash, op.Signature[:op.GetSignatureEndIdx()], eoaSigner.Address.String())
 		displayUserOpStatus(op, chainID)
+
+		if op.IsCrossChainOperation() {
+			traceRes, err := userop.NewXDataExtractor().ExtractAndDebug(op)
+			if err != nil {
+				fmt.Printf("No xData found: %s\n", err)
+				return
+			}
+			fmt.Printf("Cross-chain tracing result: %s\n", traceRes)
+		}
+
 	},
 }
 
