@@ -9,8 +9,7 @@ import (
 	"github.com/blndgs/model"
 )
 
-// State represents the state of a UserOperation in terms of its
-// intent/cross-chain characteristics and solution status
+// State represents the state of a UserOperation
 type State int
 
 const (
@@ -25,6 +24,12 @@ const (
 	StateXChainAggregate   // Special case: Aggregate XChain operation
 )
 
+// Color returns ANSI color codes for pretty console printing
+func (s State) Color() string {
+	return stateColors[s]
+}
+
+// String representation of State
 func (s State) String() string {
 	return [...]string{
 		"Unsigned UserOp (invalid or missing signature)",
@@ -40,18 +45,16 @@ func (s State) String() string {
 }
 
 // Color returns ANSI color codes for pretty console printing
-func (s State) Color() string {
-	return map[State]string{
-		StateUnsigned:          "\033[31m", // Red
-		StateConventional:      "\033[32m", // Green
-		StateIntentUnsolved:    "\033[33m", // Yellow
-		StateSolutionLess:      "\033[33m", // Yellow
-		StateIntentSolved:      "\033[32m", // Green
-		StateXChainUnsolved:    "\033[36m", // Cyan
-		StateXChainInSignature: "\033[36m", // Cyan
-		StateXChainSolved:      "\033[32m", // Green
-		StateXChainAggregate:   "\033[35m", // Magenta
-	}[s]
+var stateColors = map[State]string{
+	StateUnsigned:          "\033[31m", // Red
+	StateConventional:      "\033[32m", // Green
+	StateIntentUnsolved:    "\033[33m", // Yellow
+	StateSolutionLess:      "\033[33m", // Yellow
+	StateIntentSolved:      "\033[32m", // Green
+	StateXChainUnsolved:    "\033[36m", // Cyan
+	StateXChainInSignature: "\033[36m", // Cyan
+	StateXChainSolved:      "\033[32m", // Green
+	StateXChainAggregate:   "\033[35m", // Magenta
 }
 
 // DetermineState analyzes a UserOperation to determine its current state
@@ -76,14 +79,14 @@ func DetermineState(op *model.UserOperation) State {
 }
 
 func HasXDataInCallData(op *model.UserOperation) bool {
-    if op == nil || len(op.CallData) == 0 {
-        return false
-    }
-    xData, err := model.ParseCrossChainData(op.CallData)
-    if err != nil {
-        return false
-    }
-    return validXData(xData)
+	if op == nil || len(op.CallData) == 0 {
+		return false
+	}
+	xData, err := model.ParseCrossChainData(op.CallData)
+	if err != nil {
+		return false
+	}
+	return validXData(xData)
 }
 
 func HasXDataInSignature(op *model.UserOperation) bool {
@@ -222,39 +225,39 @@ var (
 	styleReset  = "\033[0m"
 	styleColors = map[State]ConsoleStyle{
 		StateUnsigned: {
-			Color: "\033[31m", // Red for warnings/errors
+			Color: stateColors[StateUnsigned], // Red
 			Reset: styleReset,
 		},
 		StateConventional: {
-			Color: "\033[32m", // Green for valid/complete states
+			Color: stateColors[StateConventional], // Green
 			Reset: styleReset,
 		},
 		StateIntentUnsolved: {
-			Color: "\033[33m", // Yellow for pending/in-progress
+			Color: stateColors[StateIntentUnsolved], // Yellow
 			Reset: styleReset,
 		},
 		StateSolutionLess: {
-			Color: "\033[33m", // Yellow
+			Color: stateColors[StateSolutionLess], // Yellow
 			Reset: styleReset,
 		},
 		StateIntentSolved: {
-			Color: "\033[32m", // Green
+			Color: stateColors[StateIntentSolved], // Green
 			Reset: styleReset,
 		},
 		StateXChainUnsolved: {
-			Color: "\033[36m", // Cyan for cross-chain operations
+			Color: stateColors[StateXChainUnsolved], // Cyan
 			Reset: styleReset,
 		},
 		StateXChainInSignature: {
-			Color: "\033[36m", // Cyan
+			Color: stateColors[StateXChainInSignature], // Cyan
 			Reset: styleReset,
 		},
 		StateXChainSolved: {
-			Color: "\033[32m", // Green
+			Color: stateColors[StateXChainSolved], // Green
 			Reset: styleReset,
 		},
 		StateXChainAggregate: {
-			Color: "\033[35m", // Magenta for special states
+			Color: stateColors[StateXChainAggregate], // Magenta
 			Reset: styleReset,
 		},
 	}
