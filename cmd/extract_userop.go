@@ -15,7 +15,8 @@ func init() {
 	}
 }
 
-// ExtractUserOpCmd represents the command to sign user operations.
+// ExtractUserOpCmd represents the command to extract embedded user operations from
+// aggregate user operations.
 var ExtractUserOpCmd = &cobra.Command{
 	Use:   "extract",
 	Short: "Extract the embedded userOp from an aggregate userOp and prints them.",
