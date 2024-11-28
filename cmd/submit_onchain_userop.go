@@ -24,26 +24,38 @@ import (
 
 // init initializes the submitUserOp command and adds it to the root command.
 func init() {
-	utils.AddCommonFlags(OnChainUserOpCmd)
+	if err := utils.AddCommonFlags(OnChainUserOpCmd); err != nil {
+		panic(config.NewError("failed to add common flags", err))
+	}
 }
 
 // OnChainUserOpCmd represents the command to submit user operations on-chain.
 var OnChainUserOpCmd = &cobra.Command{
 	Use:   "onchain",
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read configuration and initialize necessary components.
-		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf(false)
-		userOps := utils.GetUserOps(cmd)
-		hashes := utils.GetHashes(cmd)
-		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
-
-		processor := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
-
-		err := processor.ProcessUserOps(userOps, DirectSubmit)
+		nodes, bundlerURL, entrypointAddr, eoaSigner, _ := config.ReadConf(false)
+		userOps, err := utils.GetUserOps(cmd)
 		if err != nil {
-			panic(err)
+			return config.NewError("failed to get user operations", err)
 		}
+		hashes := utils.GetHashes(cmd)
+		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		if err != nil {
+			return config.NewError("failed to get chain monikers", err)
+		}
+
+		processor, err := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
+		if err != nil {
+			return config.NewError("failed to create user operation processor", err)
+		}
+
+		if err := processor.ProcessUserOps(userOps, DirectSubmit); err != nil {
+			return config.NewError("failed to process user operations", err)
+		}
+
+		return nil
 	},
 }
 
@@ -74,7 +86,7 @@ func createTransactionOpts(rpcClient *geth.Client, chainID *big.Int, entrypointA
 
 	// Calculate gas limit with buffer for Squid operations
 	estimatedGasLimit := uint64(1000000) // From Squid response
-	gasLimitBuffer := uint64(200000)    // Additional buffer
+	gasLimitBuffer := uint64(200000)     // Additional buffer
 
 	return transaction.Opts{
 		Eth:         rpcClient,

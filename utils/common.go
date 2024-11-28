@@ -22,14 +22,19 @@ import (
 type NoncesMap map[string]*big.Int // moniker -> nonce
 
 // AddCommonFlags adds common flags to the provided Cobra command.
-func AddCommonFlags(cmd *cobra.Command) {
+func AddCommonFlags(cmd *cobra.Command) error {
 	cmd.Flags().String("u", "", "User operation JSON")
 	cmd.Flags().String("h", "", "List of other cross-chain user operations hashes")
 	cmd.Flags().String("c", "", "List of other user operations' Chains")
 
+	// Override the default error handling
+	cmd.SilenceErrors = true
+	cmd.SilenceUsage = true
+
 	if err := cmd.MarkFlagRequired("u"); err != nil {
-		panic(err)
+		return config.NewError("failed to mark 'u' flag as required", err)
 	}
+	return nil
 }
 
 // sanitizeUserOpJSON cleans up the input JSON string
@@ -62,10 +67,10 @@ func sanitizeUserOpJSON(userOpJSON string) string {
 // GetUserOps parses the 'userop' JSON string or file provided in the command flags
 // and returns a slice of UserOperation objects. It processes numeric values
 // before unmarshaling to ensure proper formatting.
-func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
+func GetUserOps(cmd *cobra.Command) ([]*model.UserOperation, error) {
 	userOpInput, _ := cmd.Flags().GetString("u")
 	if userOpInput == "" {
-		panic("user operation JSON is required")
+		return nil, config.NewError("user operation JSON is required", nil)
 	}
 	userOpInput = strings.TrimSpace(userOpInput)
 
@@ -75,11 +80,11 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	} else if fileExists(userOpInput) {
 		fileContent, err := os.ReadFile(userOpInput)
 		if err != nil {
-			panic(fmt.Errorf("error reading user operation file: %v", err))
+			return nil, config.NewError("error reading user operation file", err)
 		}
 		jsonContent = string(fileContent)
 	} else {
-		panic("invalid user operation input")
+		return nil, config.NewError("invalid user operation input", nil)
 	}
 
 	sanitizedJSON := sanitizeUserOpJSON(jsonContent)
@@ -89,11 +94,13 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	dec := json.NewDecoder(strings.NewReader(sanitizedJSON))
 	dec.UseNumber()
 	if err := dec.Decode(&data); err != nil {
-		panic(fmt.Errorf("error parsing user operation JSON: %v", err))
+		return nil, config.NewError("error parsing user operation JSON", err)
 	}
 
 	// Process callData field first
-	processCallDataFields(data)
+	if err := processCallDataFields(data); err != nil {
+		return nil, err
+	}
 
 	// Process numeric fields excluding callData
 	processNumericFields(data)
@@ -101,7 +108,7 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 	// Marshal the modified data back into JSON
 	modifiedJSONBytes, err := json.Marshal(data)
 	if err != nil {
-		panic(fmt.Errorf("error marshaling modified user operation JSON: %v", err))
+		return nil, config.NewError("error marshaling modified user operation JSON", err)
 	}
 	modifiedJSON := string(modifiedJSONBytes)
 
@@ -110,27 +117,25 @@ func GetUserOps(cmd *cobra.Command) []*model.UserOperation {
 }
 
 // unMarshalOps unmarshals the modified JSON into UserOperation structs
-func unMarshalOps(userOpJSON string) []*model.UserOperation {
+func unMarshalOps(userOpJSON string) ([]*model.UserOperation, error) {
 	var userOps []*model.UserOperation
 	// Determine if the input is a single userOp or an array of userOps
 	if strings.HasPrefix(userOpJSON, "[") {
 		// Input is an array of userOps
 		err := json.Unmarshal([]byte(userOpJSON), &userOps)
 		if err != nil {
-			fmt.Println(userOpJSON)
-			panic(fmt.Errorf("error parsing user operations JSON: %v", err))
+			return nil, config.NewError("error parsing user operations JSON array", err)
 		}
 	} else {
 		// Input is a single userOp
 		var userOp model.UserOperation
 		err := json.Unmarshal([]byte(userOpJSON), &userOp)
 		if err != nil {
-			fmt.Println(userOpJSON)
-			panic(fmt.Errorf("error parsing user operation JSON: %v", err))
+			return nil, config.NewError("error parsing single user operation JSON", err)
 		}
 		userOps = append(userOps, &userOp)
 	}
-	return userOps
+	return userOps, nil
 }
 
 func processNumericFields(v interface{}) {
@@ -176,31 +181,40 @@ func IsNumericString(s string) bool {
 }
 
 // processCallDataFields processes the 'callData' field to ensure it is correctly formatted
-func processCallDataFields(v interface{}) {
+func processCallDataFields(v interface{}) error {
 	if vv, ok := v.(map[string]interface{}); ok {
 		for key, val := range vv {
 			if key == "callData" {
 				switch callDataVal := val.(type) {
 				case string:
-					processCallDataString(vv, key, callDataVal)
+					if err := processCallDataString(vv, key, callDataVal); err != nil {
+						return err
+					}
 				case json.Number:
-					processCallDataNumber(vv, key, callDataVal)
+					if err := processCallDataNumber(vv, key, callDataVal); err != nil {
+						return err
+					}
 				default:
-					panic(fmt.Errorf("invalid callData type: %T", val))
+					return config.NewError(fmt.Sprintf("invalid callData type: %T", val), nil)
 				}
 			} else {
 				// Recursively process nested structures
-				processCallDataFields(val)
+				if err := processCallDataFields(val); err != nil {
+					return err
+				}
 			}
 		}
 	} else if vv, ok := v.([]interface{}); ok {
 		for _, item := range vv {
-			processCallDataFields(item)
+			if err := processCallDataFields(item); err != nil {
+				return err
+			}
 		}
 	}
+	return nil
 }
 
-func processCallDataString(vv map[string]interface{}, key string, callDataStr string) {
+func processCallDataString(vv map[string]interface{}, key string, callDataStr string) error {
 	if callDataStr == "" || callDataStr == "{}" {
 		vv[key] = "0x"
 	} else if callDataStr == "0" {
@@ -213,12 +227,13 @@ func processCallDataString(vv map[string]interface{}, key string, callDataStr st
 		if err == nil {
 			vv[key] = modifiedCallData
 		} else {
-			panic(fmt.Errorf("error processing callData: %v", err))
+			return config.NewError("error processing callData", err)
 		}
 	}
+	return nil
 }
 
-func processCallDataNumber(vv map[string]interface{}, key string, callDataNum json.Number) {
+func processCallDataNumber(vv map[string]interface{}, key string, callDataNum json.Number) error {
 	callDataStr := callDataNum.String()
 	if callDataStr == "0" {
 		vv[key] = "0x0"
@@ -227,9 +242,10 @@ func processCallDataNumber(vv map[string]interface{}, key string, callDataNum js
 		if ok {
 			vv[key] = "0x" + bigInt.Text(16)
 		} else {
-			panic(fmt.Errorf("invalid callData number: %v", callDataStr))
+			return config.NewError(fmt.Sprintf("invalid callData number: %v", callDataStr), nil)
 		}
 	}
+	return nil
 }
 
 // GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
@@ -265,14 +281,14 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 // flag 'c' and returns a slice of chain monikers. The number of chains provided must
 // match the number of userOps and belong to the initialized nodesMap. If a chain ID
 // is provided instead of a moniker, it will be matched against the chain IDs in nodesMap.
-func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int) []string {
+func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int) ([]string, error) {
 	var parsedChains = []string{config.DefaultRPCURLKey}
 	chainsStr, _ := cmd.Flags().GetString("c")
 	if chainsStr == "" && opsCount > 1 {
 		panic("chains flag is required when multiple userOps were provided")
 	}
 	if chainsStr == "" {
-		return parsedChains
+		return parsedChains, nil
 	}
 
 	chains := strings.Split(chainsStr, " ")
@@ -304,12 +320,12 @@ func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int
 				}
 			}
 			if !found {
-				panic(fmt.Errorf("chain %s not found in the nodes configuration", chain))
+				return nil, config.NewError(fmt.Sprintf("chain %s not found in the nodes configuration", chain), nil)
 			}
 		}
 	}
 
-	return parsedChains
+	return parsedChains, nil
 }
 
 // UpdateUserOp sets the nonce value and 4337 default gas limits if they are zero.
@@ -330,10 +346,10 @@ func UpdateUserOp(userOp *model.UserOperation, nonce *big.Int) *model.UserOperat
 	return userOp
 }
 
-func PrintSignedOpJSON(userOp *model.UserOperation) {
+func PrintSignedOpJSON(userOp *model.UserOperation) error {
 	jsonBytes, err := json.Marshal(userOp)
 	if err != nil {
-		panic(fmt.Errorf("failed marshaling signed operations to JSON: %w", err))
+		return config.NewError("failed marshaling signed operations to JSON", err)
 	}
 
 	// Print signed Op JSON
@@ -351,6 +367,7 @@ func PrintSignedOpJSON(userOp *model.UserOperation) {
 	} else {
 		fmt.Println("Signed UserOp in JSON:", string(jsonBytes))
 	}
+	return nil
 }
 
 // PrintPostIntentSolutionSignature prints the signature + hex encoded intent JSON (calldata).

@@ -39,7 +39,7 @@ const DefaultRPCURLKey = "default"
 // ReadConf reads configuration from a .env file and initializes
 // necessary variables like node URLs, signer, bundler URL, and entry point address.
 // It returns these values and logs configuration details.
-func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA) {
+func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA, error) {
 	const signerPrvKey = "SIGNER_PRIVATE_KEY"
 	const bundlerUrl = "BUNDLER_URL"
 	const epAddr = "ENTRYPOINT_ADDR"
@@ -58,7 +58,8 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA) {
 		if strings.HasPrefix(key, ethNodeUrlPrefix) {
 			if strings.Contains(key, DefaultRPCURLKey) {
 				if foundDefaultRPCURL {
-					panic(fmt.Errorf("found multiple default RPC URLs"))
+					return nil, "", common.Address{}, nil,
+						NewError("multiple default RPC URLs found: Add only one environment variable with 'default' in the key, e.g. ETH_NODE_URL_DEFAULT", nil)
 				}
 				foundDefaultRPCURL = true
 				// save the default RPC URL with 'default' as the key
@@ -71,13 +72,15 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA) {
 	}
 
 	if !foundDefaultRPCURL {
-		panic(fmt.Errorf("no default RPC URL found: Add an environment variable with 'default' in the key, e.g. ETH_NODE_URL_DEFAULT"))
+		return nil, "", common.Address{}, nil,
+			NewError(
+				"no default RPC URL found: Add an environment variable with 'default' in the key, e.g. ETH_NODE_URL_DEFAULT", nil)
 	}
 
 	prvKeyHex := viper.GetString(signerPrvKey)
 	s, err := signer.New(prvKeyHex)
 	if err != nil {
-		panic(fmt.Errorf("fatal signer error: %w", err))
+		return nil, "", common.Address{}, nil, NewError("fatal signer error", err)
 	}
 	bundlerURL := viper.GetString(bundlerUrl)
 	entryPointAddr := common.HexToAddress(viper.GetString(epAddr))
@@ -92,7 +95,7 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA) {
 		}
 	}
 
-	return nodeURLs, bundlerURL, entryPointAddr, s
+	return nodeURLs, bundlerURL, entryPointAddr, s, nil
 }
 
 func initNode(key string) ChainNode {

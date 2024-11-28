@@ -15,32 +15,31 @@ import (
 
 // init initializes the recover command and adds it to the root command.
 func init() {
-	utils.AddCommonFlags(RecoverSignerCmd)
+	if err := utils.AddCommonFlags(RecoverSignerCmd); err != nil {
+		panic(config.NewError("failed to add common flags", err))
+	}
 }
 
 // RecoverSignerCmd represents the command to sign user operations.
 var RecoverSignerCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover the userOp signature's signer. Signatures with appended xData are supported. with 1 or more hashes and a signature",
-	Run: func(cmd *cobra.Command, args []string) {
-		nodes, _, entrypointAddr, eoaSigner := config.ReadConf(true)
+	RunE: func(cmd *cobra.Command, args []string) error {
+		nodes, _, entrypointAddr, eoaSigner, _ := config.ReadConf(true)
 
 		providedHashes := utils.GetHashes(cmd)
 		if len(providedHashes) > 0 {
-			fmt.Printf("Only a single userOp is required.\n")
-			return
+			return config.NewError("Only a single userOp is required", nil)
 		}
 
-		userOps := utils.GetUserOps(cmd)
-		if len(userOps) == 0 || len(userOps) > 1 {
-			fmt.Printf("Only a single userOp is supported\n")
-			return
+		userOps, err := utils.GetUserOps(cmd)
+		if len(userOps) == 0 || len(userOps) > 1 || err != nil {
+			return config.NewError("Only a single userOp is supported", err)
 		}
 
-		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
-		if len(chainMonikers) > 2 {
-			fmt.Printf("Only a single chain is supported\n")
-			return
+		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		if len(chainMonikers) > 2 || err != nil {
+			return config.NewError("Only a single chain is supported", err)
 		}
 
 		var chainID *big.Int
@@ -56,8 +55,7 @@ var RecoverSignerCmd = &cobra.Command{
 
 		opHash, err := getUserOpHash(op, entrypointAddr, chainID)
 		if err != nil {
-			fmt.Printf("could not generate userOp hash: %s\n", err)
-			return
+			return config.NewError("could not generate userOp hash", err)
 		}
 
 		recoverSigner(opHash, op.Signature[:op.GetSignatureEndIdx()], eoaSigner.Address.String())
@@ -66,12 +64,12 @@ var RecoverSignerCmd = &cobra.Command{
 		if op.IsCrossChainOperation() {
 			traceRes, err := userop.NewXDataExtractor().ExtractAndDebug(op)
 			if err != nil {
-				fmt.Printf("No xData found: %s\n", err)
-				return
+				return config.NewError("No xData found", err)
 			}
 			fmt.Printf("Cross-chain tracing result: %s\n", traceRes)
 		}
 
+		return nil
 	},
 }
 

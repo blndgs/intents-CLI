@@ -8,25 +8,37 @@ import (
 
 // init initializes the sendUserOp command and adds it to the root command.
 func init() {
-	utils.AddCommonFlags(SendUserOpCmd)
+	if err := utils.AddCommonFlags(SendUserOpCmd); err != nil {
+		panic(config.NewError("failed to add common flags", err))
+	}
 }
 
 // SendUserOpCmd represents the command to send user operations.
 var SendUserOpCmd = &cobra.Command{
 	Use:   "send",
 	Short: "Send userOps with JSON input",
-	Run: func(cmd *cobra.Command, args []string) {
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read configuration and initialize necessary components.
-		nodes, bundlerURL, entrypointAddr, eoaSigner := config.ReadConf(false)
-		userOps := utils.GetUserOps(cmd)
-		hashes := utils.GetHashes(cmd)
-		chainMonikers := utils.GetChainMonikers(cmd, nodes, len(userOps))
-
-		processor := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
-
-		err := processor.ProcessUserOps(userOps, BundlerSubmit)
+		nodes, bundlerURL, entrypointAddr, eoaSigner, _ := config.ReadConf(false)
+		userOps, err := utils.GetUserOps(cmd)
 		if err != nil {
-			panic(err)
+			return config.NewError("failed to get user operations", err)
 		}
+		hashes := utils.GetHashes(cmd)
+		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		if err != nil {
+			return config.NewError("failed to get chain monikers", err)
+		}
+
+		processor, err := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
+		if err != nil {
+			return config.NewError("failed to create user operation processor", err)
+		}
+
+		if err := processor.ProcessUserOps(userOps, BundlerSubmit); err != nil {
+			return config.NewError("failed to process user operations", err)
+		}
+
+		return nil
 	},
 }

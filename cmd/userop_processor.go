@@ -1,4 +1,3 @@
-// userop_processor.go
 package cmd
 
 import (
@@ -14,7 +13,6 @@ import (
 	"github.com/blndgs/intents-sdk/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
 
@@ -43,12 +41,12 @@ type UserOpProcessor struct {
 	ChainIDs       []*big.Int
 }
 
-func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, bundlerURL string, entrypointAddr common.Address, signer *signer.EOA, hashes []common.Hash, chainMonikers []string) *UserOpProcessor {
+func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, bundlerURL string, entrypointAddr common.Address, signer *signer.EOA, hashes []common.Hash, chainMonikers []string) (*UserOpProcessor, error) {
 	if len(userOps) == 0 {
-		panic("userOps is empty")
+		return nil, config.NewError("userOps is empty", nil)
 	}
 	if len(userOps) > 1 && len(hashes) > 0 {
-		panic("hashes must be empty for multiple UserOperations as they are computed by the userOps")
+		return nil, config.NewError("hashes must be empty for multiple UserOperations as they are computed by the userOps", nil)
 	}
 
 	chainIDs := make([]*big.Int, len(userOps))
@@ -66,37 +64,36 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 		CachedHashes:   make([]common.Hash, 0, len(userOps)),
 		ChainIDs:       chainIDs,
 		ChainMonikers:  chainMonikers,
-	}
+	}, nil
 }
 
-func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) {
+func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) error {
 	for i, op := range userOps {
 		var hash common.Hash
 		if len(p.ProvidedHashes) > i && p.ProvidedHashes[i] != (common.Hash{}) {
-			// use the provided hash
 			hash = p.ProvidedHashes[i]
 			fmt.Printf("Provided UserOp hash: %s for ChainID: %s\n", hash, p.ChainIDs[i])
 		} else if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
 			if err := p.Set4337Nonce(op, p.ChainMonikers[i]); err != nil {
-				panic(fmt.Errorf("failed setting EIP-4337 nonce: %w", err))
+				return config.NewError("failed setting EIP-4337 nonce", err)
 			}
 		} else if op.IsCrossChainOperation() && len(userOps) == 1 && ((submissionAction == BundlerSubmit && userop.IsAggregate(op)) || submissionAction == DirectSubmit) {
-			// if len(userOps) > 1, the xChain hash is computed after setting the xCallData values
 			var xData *model.CrossChainData
 			var err error
 			if userop.HasXDataInCallData(op) {
 				xData, err = model.ParseCrossChainData(op.CallData)
 				if err != nil {
-					panic(fmt.Errorf("failed parsing cross-chain data: %w", err))
+					return config.NewError("failed parsing cross-chain data from callData", err)
 				}
 			} else if userop.HasXDataInSignature(op) {
 				xData, err = model.ParseCrossChainData(op.Signature[op.GetSignatureEndIdx():])
 				if err != nil {
-					panic(fmt.Errorf("failed parsing cross-chain data: %w", err))
+					return config.NewError("failed parsing cross-chain data from signature", err)
 				}
 			} else {
-				panic(errors.New("no cross-chain xData found in cross-chain UserOp's callData or signature"))
+				return config.NewError("no cross-chain xData found in cross-chain UserOp's callData or signature", nil)
 			}
+
 			hashes := make([]common.Hash, len(xData.HashList))
 			for i, h := range xData.HashList {
 				if h.IsPlaceholder {
@@ -106,28 +103,28 @@ func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submission
 				}
 			}
 
-			// compute xChain op hash
 			hash = userop.GenXHash(hashes)
 			fmt.Printf("Generated XChain UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
 		}
 
 		if hash == (common.Hash{}) {
-			// compute same-chain op hash
 			hash = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i])
 			fmt.Printf("Generated UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
 		}
-		// idempotent append
+
 		if len(p.CachedHashes) <= i || p.CachedHashes[i] != hash {
 			p.CachedHashes = append(p.CachedHashes, hash)
 		}
 	}
+	return nil
 }
 
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
-	p.setOpHashes(userOps, submissionAction)
+	if err := p.setOpHashes(userOps, submissionAction); err != nil {
+		return config.NewError("error setting UserOperation hashes", err)
+	}
 	println()
 	if len(userOps) > 1 {
-		// print the aggregate xChain hash
 		fmt.Printf("Aggregate xChain hash: %s\n", userop.GenXHash(p.CachedHashes))
 	}
 
@@ -135,7 +132,7 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	if len(userOps) == 1 {
 		callData, err := abi.PrepareHandleOpCalldata(*userOps[0], userOps[0].Sender)
 		if err != nil {
-			return errors.Wrap(err, "error preparing userOp callData")
+			return config.NewError("error preparing userOp callData", err)
 		}
 		fmt.Printf("\nEntrypoint handleOps callData: \n%s\n\n", callData)
 	}
@@ -145,11 +142,15 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 
 	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
-		p.signAndPrintUserOps(userOps)
+		if err := p.signAndPrintUserOps(userOps); err != nil {
+			return err
+		}
 	} else {
 		// Print JSON for verified userOp signature
 		if submissionAction != DirectSubmit && submissionAction != BundlerSubmit {
-			utils.PrintSignedOpJSON(userOps[0])
+			if err := utils.PrintSignedOpJSON(userOps[0]); err != nil {
+				return config.NewError("failed to print signed userOp JSON", err)
+			}
 		}
 	}
 
@@ -162,14 +163,18 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 	case BundlerSubmit:
 		// Submit to EIP-4337 bundler
-		p.sendUserOp(userOps[0])
+		if err := p.sendUserOp(userOps[0]); err != nil {
+			return err
+		}
 
 	case DirectSubmit:
 		// Submit directly to Ethereum node
-		p.submit(context.Background(), p.ChainIDs[0], userOps[0])
+		if err := p.submit(context.Background(), p.ChainIDs[0], userOps[0]); err != nil {
+			return err
+		}
 
 	default:
-		return fmt.Errorf("invalid submission type: %d", submissionAction)
+		return config.NewError(fmt.Sprintf("invalid submission type: %d", submissionAction), nil)
 	}
 
 	return nil
@@ -186,20 +191,19 @@ func (p *UserOpProcessor) Set4337Nonce(op *model.UserOperation, chainMoniker str
 	return nil
 }
 
-// signAndPrintUserOps signs the provided UserOperations and prints the signed
+func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) error {
 // UserOperations.
 // For multiple UserOperations, it prints the UserOperations with xCallData
 // values appended to the signature, enabling on-chain execution or simulation
 // without permanent effects.
 // It then prepares the userOperations for sending to the bundler and solver by
 // aggregating the UserOperations and prints the aggregated UserOperation.
-func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) {
 	if p.BundlerURL == "" {
-		panic("bundler URL is not set")
+		return config.NewError("bundler URL is not set", nil)
 	}
 
 	if err := userop.SignUserOperations(p.Signer, p.CachedHashes, userOps); err != nil {
-		panic(fmt.Errorf("failed signing user operations of count:%d %w", len(userOps), err))
+		return config.NewError(fmt.Sprintf("failed signing user operations of count:%d", len(userOps)), err)
 	}
 
 	recoveredAddress := userop.RecoverSigner(userop.GenXHash(p.CachedHashes), userOps[0].Signature)
@@ -208,10 +212,14 @@ func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) {
 		fmt.Printf("Signed userOp:\n%s\n", userOps[0])
 		fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
 
-		// Marshal signedOp into JSON
-		utils.PrintSignedOpJSON(userOps[0])
+		if err := utils.PrintSignedOpJSON(userOps[0]); err != nil {
+			return config.NewError("failed to print signed userOp JSON", err)
+		}
 	} else {
-		p.setXCallDataValues(userOps)
+		if err := p.setXCallDataValues(userOps); err != nil {
+			return err
+		}
+
 		for i, op := range userOps {
 			fmt.Printf("\nXChain userOp %d:\n%s\n", i, op)
 			fmt.Printf("\nRecovered address: %s\n\n", recoveredAddress)
@@ -222,71 +230,75 @@ func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) {
 			cpyOps[i] = new(model.UserOperation)
 			*cpyOps[i] = *op
 		}
-		p.moveXCallDataValues(cpyOps)
-		for i, op := range cpyOps {
-			fmt.Printf("\nXChain UserOp with xCallData value appended to the signature value: %d:\n", i)
-			utils.PrintSignedOpJSON(op)
+
+		if err := p.moveXCallDataValues(cpyOps); err != nil {
+			return config.NewError("failed to move xCallData values", err)
 		}
 
-		// Prepare handleOpsCallData for dest op with Intent appended to the signature
+		for i, op := range cpyOps {
+			fmt.Printf("\nXChain UserOp with xCallData value appended to the signature value: %d:\n", i)
+			if err := utils.PrintSignedOpJSON(op); err != nil {
+				return config.NewError("failed to print signed userOp JSON", err)
+			}
+		}
+
 		handleOpsCallData, err := abi.PrepareHandleOpCalldata(*cpyOps[1], cpyOps[1].Sender)
 		if err != nil {
-			panic(errors.Wrap(err, "error preparing userOp handleOpsCallData"))
+			return config.NewError("error preparing userOp handleOpsCallData", err)
 		}
 		fmt.Printf("\nHandleOps callData value (destination chain): \n%s\n\n", handleOpsCallData)
 
-		// Aggregate the UserOperations
 		if err := userOps[0].Aggregate(userOps[1]); err != nil {
-			panic(fmt.Errorf("failed to aggregate userOps: %w", err))
+			return config.NewError("failed to aggregate userOps", err)
 		}
 
 		fmt.Printf("\nAggregated userOp:\n%s\n", userOps[0])
-		utils.PrintSignedOpJSON(userOps[0])
+		if err := utils.PrintSignedOpJSON(userOps[0]); err != nil {
+			return config.NewError("failed to print signed userOp JSON", err)
+		}
 	}
+	return nil
 }
 
-func (p *UserOpProcessor) moveXCallDataValues(userOps []*model.UserOperation) {
+func (p *UserOpProcessor) moveXCallDataValues(userOps []*model.UserOperation) error {
 	if len(userOps) != 2 {
-		panic("only 2 UserOperations are supported")
+		return config.NewError("only 2 UserOperations are supported", nil)
 	}
 	if !userOps[0].IsCrossChainOperation() || !userOps[1].IsCrossChainOperation() {
-		panic("only cross-chain UserOperations are supported")
+		return config.NewError("only cross-chain UserOperations are supported", nil)
 	}
 
-	// Append the xCallData values to the UserOperations' signature value and set an empty CallData field value
 	if err := userOps[0].SetEVMInstructions([]byte{}); err != nil {
-		panic(fmt.Errorf("failed setting the sourceOp EVM instructions: %w", err))
+		return config.NewError("failed setting the sourceOp EVM instructions", err)
 	}
 	if err := userOps[1].SetEVMInstructions([]byte{}); err != nil {
-		panic(fmt.Errorf("failed setting the destOp EVM instructions: %w", err))
+		return config.NewError("failed setting the destOp EVM instructions", err)
 	}
+	return nil
 }
 
-// setXCallDataValues sets the xCallData values for the source and destination UserOperations.
-// When we extend the x-chain ops to 3 or more, we will update the model's `EncodeCrossChainCallData` and this
-// function to set the list of the other userOps hash values
-func (p *UserOpProcessor) setXCallDataValues(userOps []*model.UserOperation) {
+func (p *UserOpProcessor) setXCallDataValues(userOps []*model.UserOperation) error {
 	if len(userOps) != 2 {
-		panic("only 2 UserOperations are supported")
+		return config.NewError("only 2 UserOperations are supported", nil)
 	}
 
 	var err error
 	userOps[0].CallData, err = userOps[0].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[1], true)
 	if err != nil {
-		panic(fmt.Errorf("failed encoding the sourceOp xCallData value: %w", err))
+		return config.NewError("failed encoding the sourceOp xCallData value", err)
 	}
 
 	userOps[1].CallData, err = userOps[1].EncodeCrossChainCallData(p.EntrypointAddr, p.CachedHashes[0], false)
 	if err != nil {
-		panic(fmt.Errorf("failed encoding the destOp xCallData value: %w", err))
+		return config.NewError("failed encoding the destOp xCallData value", err)
 	}
+	return nil
 }
 
-func (p *UserOpProcessor) sendUserOp(signedUserOp *model.UserOperation) {
-	// send user ops
+func (p *UserOpProcessor) sendUserOp(signedUserOp *model.UserOperation) error {
 	hashResp, err := httpclient.SendUserOp(p.BundlerURL, p.EntrypointAddr, signedUserOp)
 	if err != nil {
-		panic(err)
+		return config.NewError("failed to send user operation", err)
 	}
 
 	fmt.Printf("sign and send userOps hashResp: %+v\n", hashResp)
@@ -294,21 +306,23 @@ func (p *UserOpProcessor) sendUserOp(signedUserOp *model.UserOperation) {
 	receipt, err := httpclient.GetUserOperationReceipt(p.BundlerURL, hashResp.Solved)
 	if err != nil {
 		fmt.Println("Error getting UserOperation receipt:", err)
-		return
+		return config.NewError("failed to get user operation receipt", err)
 	}
 
 	fmt.Println("UserOperation Receipt:", string(receipt))
+	return nil
 }
 
-func (p *UserOpProcessor) submit(ctx context.Context, chainID *big.Int, signedUserOp *model.UserOperation) {
+func (p *UserOpProcessor) submit(ctx context.Context, chainID *big.Int, signedUserOp *model.UserOperation) error {
 	gasParams, err := getGasParams(ctx, p.Nodes[config.DefaultRPCURLKey].Node.EthClient)
 	if err != nil {
-		panic(err)
+		return config.NewError("failed to get gas parameters", err)
 	}
 
 	opts := createTransactionOpts(p.Nodes[config.DefaultRPCURLKey].Node.EthClient, chainID, p.EntrypointAddr, p.Signer, signedUserOp, gasParams)
 
 	if err := executeUserOperation(opts); err != nil {
-		panic(fmt.Errorf("failed executing user operation: %w", err))
+		return config.NewError("failed executing user operation", err)
 	}
+	return nil
 }
