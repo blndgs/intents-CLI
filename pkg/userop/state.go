@@ -76,11 +76,14 @@ func DetermineState(op *model.UserOperation) State {
 }
 
 func HasXDataInCallData(op *model.UserOperation) bool {
-	xData, err := model.ParseCrossChainData(op.CallData)
-	if err != nil {
-		return false
-	}
-	return validXData(xData)
+    if op == nil || len(op.CallData) == 0 {
+        return false
+    }
+    xData, err := model.ParseCrossChainData(op.CallData)
+    if err != nil {
+        return false
+    }
+    return validXData(xData)
 }
 
 func HasXDataInSignature(op *model.UserOperation) bool {
