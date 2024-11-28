@@ -278,14 +278,12 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 }
 
 // GetChainMonikers parses the network moniker or numeric chain-id value from the command line
-// flag 'c' and returns a slice of chain monikers. The number of chains provided must
-// match the number of userOps and belong to the initialized nodesMap. If a chain ID
-// is provided instead of a moniker, it will be matched against the chain IDs in nodesMap.
+// flag 'c' and returns a slice of chain monikers.
 func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int) ([]string, error) {
 	var parsedChains = []string{config.DefaultRPCURLKey}
 	chainsStr, _ := cmd.Flags().GetString("c")
 	if chainsStr == "" && opsCount > 1 {
-		panic("chains flag is required when multiple userOps were provided")
+		return nil, config.NewError("chains flag is required when multiple userOps were provided", nil)
 	}
 	if chainsStr == "" {
 		return parsedChains, nil
@@ -293,18 +291,18 @@ func GetChainMonikers(cmd *cobra.Command, nodesMap config.NodesMap, opsCount int
 
 	chains := strings.Split(chainsStr, " ")
 	if len(chains) > opsCount {
-		panic(fmt.Errorf("number of chains provided is more than the number of user operations"))
+		return nil, config.NewError("number of chains provided is more than the number of user operations", nil)
 	}
 	if len(chains) > len(nodesMap) {
-		panic(fmt.Errorf("number of chains provided is more than the number of nodes in the configuration map"))
+		return nil, config.NewError("number of chains provided is more than the number of nodes in the configuration map", nil)
 	}
 	if len(chains) < opsCount-1 && opsCount > 1 {
-		panic(fmt.Errorf("number of chains provided is less than the number of user operations"))
+		return nil, config.NewError("number of chains provided is less than the number of user operations", nil)
 	}
 
 	for _, chain := range chains {
 		if strings.ToLower(chain) == config.DefaultRPCURLKey {
-			panic(fmt.Errorf("chain %s has already been added in the first position", chain))
+			return nil, config.NewError(fmt.Sprintf("chain %s has already been added in the first position", chain), nil)
 		}
 		if _, ok := nodesMap[chain]; ok {
 			parsedChains = append(parsedChains, chain)

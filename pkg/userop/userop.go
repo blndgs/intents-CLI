@@ -3,9 +3,9 @@ package userop
 import (
 	"bytes"
 	"crypto/ecdsa"
-	"errors"
 	"fmt"
 
+	"github.com/blndgs/intents-sdk/pkg/config"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
@@ -89,31 +89,42 @@ func getEtherMsgHash(messageHash common.Hash) common.Hash {
 }
 
 // CondResetSignature resets the signature of UserOperations if the signature is invalid.
-func CondResetSignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) {
-	if !VerifySignature(publicKey, userOps, hashes) {
+func CondResetSignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) error {
+	isValid, err := VerifySignature(publicKey, userOps, hashes)
+	if !isValid || err != nil {
+		// Reset signatures on verification error
 		for _, op := range userOps {
 			op.Signature = nil
 		}
+
+		if err == nil {
+			err = config.NewError("signature is invalid", nil)
+		}
+
+		return err
 	}
+
+	return nil
 }
 
 // VerifySignature verifies the signature of one or multiple UserOperations.
-func VerifySignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) bool {
+// VerifySignature verifies the signature of one or multiple UserOperations.
+func VerifySignature(publicKey *ecdsa.PublicKey, userOps []*model.UserOperation, hashes []common.Hash) (bool, error) {
 	if len(userOps) == 0 {
-		return false
+		return false, config.NewError("no user operations provided", nil)
 	}
 
 	signature := userOps[0].Signature
 	if len(signature) != 65 {
-		panic(errors.New("signature must be 65 bytes long"))
+		return false, config.NewError("signature must be 65 bytes long", nil)
 	}
 	if signature[64] != 27 && signature[64] != 28 {
-		panic(errors.New("invalid Ethereum signature (V is not 27 or 28)"))
+		return false, config.NewError("invalid Ethereum signature (V is not 27 or 28)", nil)
 	}
 
 	messageHash := GenXHash(hashes)
 
-	return VerifyHashSignature(messageHash, signature, publicKey)
+	return VerifyHashSignature(messageHash, signature, publicKey), nil
 }
 
 // VerifyHashSignature verifies the signature against the message hash and public key.

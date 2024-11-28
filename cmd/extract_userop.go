@@ -22,7 +22,7 @@ var ExtractUserOpCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		providedHashes := utils.GetHashes(cmd)
 		if len(providedHashes) > 0 {
-			panic("extraction does not support hash arguments")
+			return config.NewError("extraction does not support hash arguments", nil)
 		}
 
 		userOps, err := utils.GetUserOps(cmd)
@@ -32,15 +32,16 @@ var ExtractUserOpCmd = &cobra.Command{
 
 		embeddedOp, err := userOps[0].ExtractEmbeddedOp()
 		if err != nil {
-			panic(fmt.Errorf("error extracting embedded userOp: %s", err))
+			return config.NewError("error extracting embedded userOp", err)
 		}
 
 		fmt.Printf("Source userOp:\n%s\n", userOps[0])
-		// Print the formerly aggregated userOp and the extracted userOp
-		// set an empty EVM instruction to make it ready for on-chain validation
+
+		// Set empty EVM instruction to make it ready for on-chain validation
 		if err := userOps[0].SetEVMInstructions([]byte{}); err != nil {
-			panic(fmt.Errorf("failed setting the sourceOp EVM instructions: %w", err))
+			return config.NewError("failed setting the sourceOp EVM instructions", err)
 		}
+
 		if err := utils.PrintSignedOpJSON(userOps[0]); err != nil {
 			return config.NewError("failed to print source userOp", err)
 		}
@@ -48,11 +49,12 @@ var ExtractUserOpCmd = &cobra.Command{
 		fmt.Printf("\n===================== Extracted userOp =====================>\n\n")
 
 		fmt.Printf("%s\n", embeddedOp.String())
-		// Print the formerly aggregated userOp and the extracted userOp
-		// set an empty EVM instruction to make it ready for on-chain validation
+
+		// Set empty EVM instruction for extracted op
 		if err := embeddedOp.SetEVMInstructions([]byte{}); err != nil {
-			panic(fmt.Errorf("failed setting the embedded EVM instructions: %w", err))
+			return config.NewError("failed setting the embedded EVM instructions", err)
 		}
+
 		if err := utils.PrintSignedOpJSON(embeddedOp); err != nil {
 			return config.NewError("failed to print extracted userOp", err)
 		}

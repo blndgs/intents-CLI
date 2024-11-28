@@ -23,7 +23,8 @@ func TestCrossChainECDSASignature_MultipleUserOps(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify the signature
-	isValid := userop.VerifySignature(account.PublicKey, userOps, hashes)
+	isValid, err := userop.VerifySignature(account.PublicKey, userOps, hashes)
+	require.NoError(t, err, "Failed to verify signature")
 	require.True(t, isValid, "Signature is invalid for cross-chain UserOperations")
 
 	// Check if the signature matches the one from the Solidity test

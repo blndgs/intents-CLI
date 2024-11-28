@@ -113,7 +113,10 @@ func getUserOpHash(op *model.UserOperation, entryPointAddr common.Address, chain
 			fmt.Printf("No xData found in the callData or the signature. Cannot recover.\n")
 			return common.Hash{}, err
 		}
-		hashList := fillInHashList(xData, cpOp, entryPointAddr, chainID)
+		hashList, err := fillInHashList(xData, cpOp, entryPointAddr, chainID)
+		if err != nil {
+			return common.Hash{}, config.NewError("could not fill in the hash list", err)
+		}
 
 		xHash := userop.GenXHash(hashList)
 		fmt.Printf("XChain hash from the userOp callData field: %s\n", xHash)
@@ -134,20 +137,23 @@ func getUserOpHash(op *model.UserOperation, entryPointAddr common.Address, chain
 	}
 
 	// add the op hash to the x-chain hash list
-	hashList := fillInHashList(xData, cpOp, entryPointAddr, chainID)
+	hashList, err := fillInHashList(xData, cpOp, entryPointAddr, chainID)
+	if err != nil {
+		return common.Hash{}, config.NewError("could not fill in the hash list", err)
+	}
 
 	xHash := userop.GenXHash(hashList)
 	fmt.Printf("XChain hash from the userOp signature field: %s\n", xHash)
 	return xHash, nil
 }
 
-func fillInHashList(xData *model.CrossChainData, cpOp model.UserOperation, entryPointAddr common.Address, chainID *big.Int) []common.Hash {
+func fillInHashList(xData *model.CrossChainData, cpOp model.UserOperation, entryPointAddr common.Address, chainID *big.Int) ([]common.Hash, error) {
 	hashList := make([]common.Hash, len(xData.HashList))
 	for i, hash := range xData.HashList {
 		if hash.IsPlaceholder {
 			intentJSON, err := cpOp.GetIntentJSON()
 			if err != nil {
-				panic(fmt.Errorf("cannot parse intent JSON in the userOP: %w", err))
+				return nil, config.NewError("cannot parse intent JSON in the userOP", err)
 			}
 			cpOp.CallData = []byte(intentJSON)
 			hashList[i] = cpOp.GetUserOpHash(entryPointAddr, chainID)
@@ -157,7 +163,7 @@ func fillInHashList(xData *model.CrossChainData, cpOp model.UserOperation, entry
 			fmt.Printf("Other UserOp's hash: %s\n", hashList[i])
 		}
 	}
-	return hashList
+	return hashList, nil
 }
 
 func recoverSigner(opHash common.Hash, signature []byte, eoaSigner string) {

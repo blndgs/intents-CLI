@@ -48,7 +48,7 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA, error)
 	viper.SetConfigType("env")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("fatal error config file: %w", err))
+		return nil, "", common.Address{}, nil, NewError("fatal error config file", err)
 	}
 
 	foundDefaultRPCURL := false
@@ -63,11 +63,11 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA, error)
 				}
 				foundDefaultRPCURL = true
 				// save the default RPC URL with 'default' as the key
-				nodeURLs[DefaultRPCURLKey] = initNode(key)
+				nodeURLs[DefaultRPCURLKey], _ = initNode(key)
 				continue
 			}
 			moniker := strings.TrimPrefix(key, ethNodeUrlPrefix)
-			nodeURLs[moniker] = initNode(key)
+			nodeURLs[moniker], _ = initNode(key)
 		}
 	}
 
@@ -98,18 +98,18 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA, error)
 	return nodeURLs, bundlerURL, entryPointAddr, s, nil
 }
 
-func initNode(key string) ChainNode {
+func initNode(key string) (ChainNode, error) {
 	urlString := viper.GetString(key)
 	node := ethclient.NewClient(urlString)
 	chainID, err := node.EthClient.ChainID(context.Background())
 	if err != nil {
-		panic(fmt.Errorf("failed getting chain ID: %w", err))
+		return ChainNode{}, NewError("failed getting chain ID", err)
 	}
 
 	rpcClient, err := rpc.Dial(urlString)
 	if err != nil {
-		panic(fmt.Errorf("failed dialing the RPC client: %w", err))
+		return ChainNode{}, NewError("failed dialing the RPC client", err)
 	}
 
-	return ChainNode{URLStr: urlString, RPCClient: rpcClient, Node: node, ChainID: chainID}
+	return ChainNode{URLStr: urlString, RPCClient: rpcClient, Node: node, ChainID: chainID}, nil
 }

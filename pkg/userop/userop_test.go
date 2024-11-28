@@ -74,7 +74,8 @@ func TestMatchSoliditySignature(t *testing.T) {
 			userOps := []*model.UserOperation{&tc.userOp}
 			err := userop.SignUserOperations(tc.signer, hashes, userOps)
 			require.NoError(t, err)
-			isValid := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+			isValid, err := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+			require.NoError(t, err, "error verifying signature for %s", tc.userOp)
 			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
 			actualSig := fmt.Sprintf("%x", tc.userOp.Signature)
 			require.Equal(t, tc.expectedSignature, actualSig)
@@ -152,7 +153,9 @@ func TestSignConventionalUserOps(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.True(t, userop.VerifySignature(tc.signer.PublicKey, userOps, hashes), "signature is invalid for %s", tc.userOp)
+				valid, err := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+				require.NoError(t, err, "error verifying signature for %s", tc.userOp)
+				require.True(t, valid, "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}
@@ -218,7 +221,7 @@ func TestIntentUserOpSign(t *testing.T) {
 			dec.UseNumber()
 			err := dec.Decode(&userOpMap)
 			if err != nil {
-				panic(fmt.Errorf("error parsing user operation JSON: %v", err))
+				t.Errorf("error parsing user operation JSON: %v", err)
 			}
 
 			// Process the callData field
@@ -227,7 +230,7 @@ func TestIntentUserOpSign(t *testing.T) {
 					// Process callData using ConvJSONNum2ProtoValues
 					modifiedCallData, err := utils.ConvJSONNum2ProtoValues(callData)
 					if err != nil {
-						panic(fmt.Errorf("error processing callData: %v", err))
+						t.Errorf("error processing callData: %v", err)
 					}
 					userOpMap["callData"] = modifiedCallData
 				}
@@ -236,7 +239,7 @@ func TestIntentUserOpSign(t *testing.T) {
 			// Marshal the modified userOpMap back to JSON
 			modifiedUserOpJSON, err := json.Marshal(userOpMap)
 			if err != nil {
-				panic(fmt.Errorf("error marshaling modified user operation JSON: %v", err))
+				t.Errorf("error marshaling modified user operation JSON: %v", err)
 			}
 
 			// Unmarshal into userOp struct
@@ -250,9 +253,9 @@ func TestIntentUserOpSign(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if !userop.VerifySignature(tc.signer.PublicKey, userOps, hashes) {
-					t.Errorf("signature is invalid for %s", tc.userOp)
-				}
+				valid, err := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+				require.NoError(t, err, "error verifying signature for %s", tc.userOp)
+				require.True(t, valid, "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}

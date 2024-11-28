@@ -138,7 +138,9 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 	}
 
 	if len(userOps[0].Signature) == 65 {
-		userop.CondResetSignature(p.Signer.PublicKey, userOps, p.CachedHashes)
+		if err := userop.CondResetSignature(p.Signer.PublicKey, userOps, p.CachedHashes); err != nil {
+			return config.NewError("failed to verify signature", err)
+		}
 	}
 
 	if len(userOps[0].Signature) == 0 || len(userOps) > 1 {
@@ -192,12 +194,12 @@ func (p *UserOpProcessor) Set4337Nonce(op *model.UserOperation, chainMoniker str
 }
 
 func (p *UserOpProcessor) signAndPrintUserOps(userOps []*model.UserOperation) error {
-// UserOperations.
-// For multiple UserOperations, it prints the UserOperations with xCallData
-// values appended to the signature, enabling on-chain execution or simulation
-// without permanent effects.
-// It then prepares the userOperations for sending to the bundler and solver by
-// aggregating the UserOperations and prints the aggregated UserOperation.
+	// UserOperations.
+	// For multiple UserOperations, it prints the UserOperations with xCallData
+	// values appended to the signature, enabling on-chain execution or simulation
+	// without permanent effects.
+	// It then prepares the userOperations for sending to the bundler and solver by
+	// aggregating the UserOperations and prints the aggregated UserOperation.
 	if p.BundlerURL == "" {
 		return config.NewError("bundler URL is not set", nil)
 	}
