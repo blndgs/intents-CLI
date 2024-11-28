@@ -24,8 +24,14 @@ var SendAndSignUserOpCmd = &cobra.Command{
 		if err != nil {
 			return config.NewError("failed to get user operations", err)
 		}
-		hashes := utils.GetHashes(cmd)
-		chainMonikers, _ := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		hashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
+		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		if err != nil {
+			return config.NewError("failed to get chain monikers", err)
+		}
 
 		processor, err := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 		if err != nil {

@@ -21,7 +21,10 @@ var ExtractUserOpCmd = &cobra.Command{
 	Use:   "extract",
 	Short: "Extract the embedded userOp from an aggregate userOp and prints them.",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		providedHashes := utils.GetHashes(cmd)
+		providedHashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
 		if len(providedHashes) > 0 {
 			return config.NewError("extraction does not support hash arguments", nil)
 		}

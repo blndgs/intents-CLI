@@ -40,7 +40,10 @@ var HashUserOpCmd = &cobra.Command{
 			return config.NewError("failed to get chain monikers", err)
 		}
 
-		providedHashes := utils.GetHashes(cmd)
+		providedHashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
 
 		p, err := NewUserOpProcessor(userOps, nodes, "", entrypointAddr, eoaSigner, providedHashes, chainMonikers)
 		if err != nil {

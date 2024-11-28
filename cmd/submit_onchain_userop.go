@@ -40,7 +40,10 @@ var OnChainUserOpCmd = &cobra.Command{
 		if err != nil {
 			return config.NewError("failed to get user operations", err)
 		}
-		hashes := utils.GetHashes(cmd)
+		hashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
 		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
 		if err != nil {
 			return config.NewError("failed to get chain monikers", err)

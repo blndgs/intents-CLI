@@ -27,7 +27,10 @@ var RecoverSignerCmd = &cobra.Command{
 	RunE: func(cmd *cobra.Command, args []string) error {
 		nodes, _, entrypointAddr, eoaSigner, _ := config.ReadConf(true)
 
-		providedHashes := utils.GetHashes(cmd)
+		providedHashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
 		if len(providedHashes) > 0 {
 			return config.NewError("Only a single userOp is required", nil)
 		}

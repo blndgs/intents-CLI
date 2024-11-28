@@ -249,10 +249,10 @@ func processCallDataNumber(vv map[string]interface{}, key string, callDataNum js
 }
 
 // GetHashes parses the 32-byte hash values from the command line flag 'h' and returns a slice of common.Hash.
-func GetHashes(cmd *cobra.Command) []common.Hash {
+func GetHashes(cmd *cobra.Command) ([]common.Hash, error) {
 	hashesStr, _ := cmd.Flags().GetString("h")
 	if hashesStr == "" {
-		return nil // Return nil if the "h" flag is not provided
+		return nil, nil
 	}
 
 	hashes := strings.Split(hashesStr, " ")
@@ -261,12 +261,12 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 	for _, hashStr := range hashes {
 		hashStr = strings.TrimPrefix(hashStr, "0x")
 		if len(hashStr) != 64 {
-			return nil
+			return nil, config.NewError(fmt.Sprintf("invalid hash length for %s: expected 64 characters", hashStr), nil)
 		}
 
 		hashBytes, err := hex.DecodeString(hashStr)
 		if err != nil {
-			return nil
+			return nil, config.NewError(fmt.Sprintf("invalid hex string for hash %s", hashStr), err)
 		}
 
 		var hash common.Hash
@@ -274,7 +274,7 @@ func GetHashes(cmd *cobra.Command) []common.Hash {
 		parsedHashes = append(parsedHashes, hash)
 	}
 
-	return parsedHashes
+	return parsedHashes, nil
 }
 
 // GetChainMonikers parses the network moniker or numeric chain-id value from the command line
