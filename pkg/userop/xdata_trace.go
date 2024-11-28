@@ -6,9 +6,11 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/blndgs/model"
+	"github.com/goccy/go-json"
 )
 
 // DebugParseResult contains the parsed cross-chain data along with debug information
@@ -137,42 +139,33 @@ func DebugParseCrossChainData(data []byte, xDataInCallData bool) *DebugParseResu
 
 // detectJSONBoundaries attempts to identify valid JSON boundaries and any garbage data
 func detectJSONBoundaries(data []byte) (bool, []byte, []byte, []byte) {
-	// Find the first '{' character
-	start := bytes.IndexByte(data, '{')
-	if start == -1 {
-		return false, data, data, nil
+	var jsonContent json.RawMessage
+	reader := bytes.NewReader(data)
+	decoder := json.NewDecoder(reader)
+
+	// Attempt to decode JSON from the data
+	err := decoder.Decode(&jsonContent)
+	if err != nil {
+		// If decoding fails, return false with original data
+		return false, data, nil, nil
 	}
 
-	// Find the last '}' character
-	end := bytes.LastIndexByte(data, '}')
-	if end == -1 || end < start {
-		return false, data, data, nil
+	// Get the current position in the reader after JSON decoding
+	currentPos, err := reader.Seek(0, io.SeekCurrent)
+	if err != nil {
+		return false, data, nil, nil
 	}
 
-	// Extract the potential JSON content
-	jsonContent := data[start : end+1]
+	// Calculate JSON boundaries
+	jsonEnd := currentPos
+	jsonStart := jsonEnd - int64(len(jsonContent))
 
-	// Validate if it's proper JSON (simplified check)
-	bracketCount := 0
-	for _, b := range jsonContent {
-		if b == '{' {
-			bracketCount++
-		} else if b == '}' {
-			bracketCount--
-		}
-		if bracketCount < 0 {
-			return false, data, data, nil
-		}
-	}
+	// Extract leading, JSON content, and trailing data
+	leading := data[:jsonStart]
+	trailing := data[jsonEnd:]
+	jsonData := data[jsonStart:jsonEnd]
 
-	if bracketCount != 0 {
-		return false, data, data, nil
-	}
-
-	leading := data[:start]
-	trailing := data[end+1:]
-
-	return true, jsonContent, leading, trailing
+	return true, jsonData, leading, trailing
 }
 
 // NewDebugParser creates a debug parser that can be used to analyze cross-chain data
