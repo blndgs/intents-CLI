@@ -5,7 +5,7 @@ import (
 	"crypto/ecdsa"
 	"fmt"
 
-	"github.com/blndgs/intents-sdk/pkg/config"
+	"github.com/blndgs/intents-cli/pkg/config"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"

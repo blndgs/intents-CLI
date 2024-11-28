@@ -9,14 +9,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/blndgs/intents-sdk/utils"
+	"github.com/blndgs/intents-cli/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/blndgs/intents-sdk/pkg/userop"
+	"github.com/blndgs/intents-cli/pkg/userop"
 )
 
 // TestMatchSoliditySignature tests signing of classic and Intent UserOperations.

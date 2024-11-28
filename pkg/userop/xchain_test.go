@@ -12,7 +12,7 @@ import (
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/blndgs/intents-sdk/pkg/userop"
+	"github.com/blndgs/intents-cli/pkg/userop"
 )
 
 func TestCrossChainECDSASignature_MultipleUserOps(t *testing.T) {

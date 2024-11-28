@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/blndgs/intents-sdk/pkg/userop"
+	"github.com/blndgs/intents-cli/pkg/userop"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/accounts/abi"
 	"github.com/ethereum/go-ethereum/common"

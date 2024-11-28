@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"math/big"
 
-	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/userop"
-	"github.com/blndgs/intents-sdk/utils"
+	"github.com/blndgs/intents-cli/pkg/config"
+	"github.com/blndgs/intents-cli/pkg/userop"
+	"github.com/blndgs/intents-cli/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/spf13/cobra"

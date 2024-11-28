@@ -1,4 +1,4 @@
-module github.com/blndgs/intents-sdk
+module github.com/blndgs/intents-cli
 
 go 1.21.5
 

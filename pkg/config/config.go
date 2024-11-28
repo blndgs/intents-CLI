@@ -6,7 +6,7 @@ import (
 	"math/big"
 	"strings"
 
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
+	"github.com/blndgs/intents-cli/pkg/ethclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"

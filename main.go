@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/blndgs/intents-sdk/cmd"
+	"github.com/blndgs/intents-cli/cmd"
 	"github.com/spf13/cobra"
 )
 

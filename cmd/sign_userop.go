@@ -2,8 +2,8 @@
 package cmd
 
 import (
-	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/utils"
+	"github.com/blndgs/intents-cli/pkg/config"
+	"github.com/blndgs/intents-cli/utils"
 	"github.com/spf13/cobra"
 )
 

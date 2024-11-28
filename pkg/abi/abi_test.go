@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/blndgs/intents-sdk/pkg/abi"
+	"github.com/blndgs/intents-cli/pkg/abi"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
