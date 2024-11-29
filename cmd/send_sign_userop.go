@@ -1,92 +1,50 @@
+// send_sign_userop.go
 package cmd
 
 import (
-	"context"
-	"fmt"
-	"math/big"
-
-	"github.com/blndgs/intents-sdk/pkg/abi"
-	"github.com/blndgs/model"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
+	"github.com/blndgs/intents-cli/pkg/config"
+	"github.com/blndgs/intents-cli/utils"
 	"github.com/spf13/cobra"
-	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
-
-	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
-	"github.com/blndgs/intents-sdk/pkg/httpclient"
-	"github.com/blndgs/intents-sdk/pkg/userop"
-	"github.com/blndgs/intents-sdk/utils"
 )
 
-// init initializes the sendAndSignUserOp command and adds it to the root command.
 func init() {
-	utils.AddCommonFlags(SendAndSignUserOpCmd)
+	if err := utils.AddCommonFlags(SendAndSignUserOpCmd); err != nil {
+		panic(config.NewError("failed to add common flags", err))
+	}
 }
 
 // SendAndSignUserOpCmd represents the command to sign and send user operations.
 var SendAndSignUserOpCmd = &cobra.Command{
 	Use:   "sign-send",
-	Short: "Sign and send a userOp with JSON input",
-	Run: func(cmd *cobra.Command, args []string) {
+	Short: "Sign and send userOps with JSON input",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read configuration and initialize necessary components.
-		nodeUrl, bundlerUrl, entrypointAddr, eoaSigner := config.ReadConf()
-		userOp := utils.GetUserOps(cmd)
-		fmt.Println("send and sign userOp:", userOp)
-
-		sender := userOp.Sender
-		fmt.Println("sender address: ", sender)
-		// Initialize Ethereum client and retrieve nonce and chain ID.
-		ethClient := ethclient.NewClient(nodeUrl)
-
-		nonce, err := ethClient.GetNonce(sender)
+		nodes, bundlerURL, entrypointAddr, eoaSigner, err := config.ReadConf(false)
 		if err != nil {
-			panic(err)
+			return config.NewError("failed to read configuration", err)
 		}
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
-
-		chainID, err := ethClient.EthClient.ChainID(context.Background())
+		userOps, err := utils.GetUserOps(cmd)
 		if err != nil {
-			panic(err)
+			return config.NewError("failed to get user operations", err)
+		}
+		hashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
+		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		if err != nil {
+			return config.NewError("failed to get chain monikers", err)
 		}
 
-		fmt.Printf("\nchain-id:%s\n", chainID)
-		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
-
-		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
-		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
+		processor, err := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 		if err != nil {
-			panic(errors.Wrap(err, "error preparing userOp calldata"))
+			return config.NewError("failed to create user operation processor", err)
 		}
 
-		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
+		if err := processor.ProcessUserOps(userOps, BundlerSignSubmit); err != nil {
+			return config.NewError("failed to process user operations", err)
+		}
 
-		// Sign and send the user operation.
-		signAndSendUserOp(chainID, bundlerUrl, entrypointAddr, eoaSigner, unsignedUserOp)
-		// Print signature
-		utils.PrintSignature(userOp)
+		return nil
 	},
-}
-
-// signAndSendUserOp signs a user operation and then sends it.
-func signAndSendUserOp(chainID *big.Int, bundlerUrl string, entryPointAddr common.Address, signer *signer.EOA, userOp *model.UserOperation) {
-	// Sign user operation.
-	signedUserOps, err := userop.Sign(chainID, entryPointAddr, signer, userOp)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Println("signedUserOps", signedUserOps)
-	// Send user operation.
-	hashResp, err := httpclient.SendUserOp(bundlerUrl, entryPointAddr, signedUserOps)
-	if err != nil {
-		panic(err)
-	}
-	fmt.Printf("sign and send userOps hashResp: %+v\n", hashResp)
-
-	receipt, err := httpclient.GetUserOperationReceipt(bundlerUrl, hashResp.Solved)
-	if err != nil {
-		fmt.Println("Error getting UserOperation receipt:", err)
-		return
-	}
-	fmt.Println("UserOperation Receipt:", string(receipt))
 }

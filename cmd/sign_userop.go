@@ -1,91 +1,50 @@
+// send_sign_userop.go
 package cmd
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"math/big"
-
-	"github.com/blndgs/intents-sdk/pkg/abi"
-	"github.com/blndgs/model"
-	"github.com/ethereum/go-ethereum/common"
-	"github.com/pkg/errors"
+	"github.com/blndgs/intents-cli/pkg/config"
+	"github.com/blndgs/intents-cli/utils"
 	"github.com/spf13/cobra"
-	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
-
-	"github.com/blndgs/intents-sdk/pkg/config"
-	"github.com/blndgs/intents-sdk/pkg/ethclient"
-	"github.com/blndgs/intents-sdk/pkg/userop"
-	"github.com/blndgs/intents-sdk/utils"
 )
 
-// init initializes the signUserOp command and adds it to the root command.
 func init() {
-	utils.AddCommonFlags(SignUserOpCmd)
+	if err := utils.AddCommonFlags(SignUserOpCmd); err != nil {
+		panic(config.NewError("failed to add common flags", err))
+	}
 }
 
 // SignUserOpCmd represents the command to sign user operations.
 var SignUserOpCmd = &cobra.Command{
 	Use:   "sign",
-	Short: "Sign a userOp with JSON input",
-	Run: func(cmd *cobra.Command, args []string) {
+	Short: "Sign userOps with JSON input",
+	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read configuration and initialize necessary components.
-		nodeUrl, _, entrypointAddr, eoaSigner := config.ReadConf()
-		userOp := utils.GetUserOps(cmd)
-
-		sender := userOp.Sender
-
-		fmt.Println("sender address: ", sender)
-
-		// Initialize an Ethereum client and retrieve nonce and chain ID.
-		ethClient := ethclient.NewClient(nodeUrl)
-		// get nonce
-		nonce, err := ethClient.GetNonce(sender)
+		nodes, bundlerURL, entrypointAddr, eoaSigner, err := config.ReadConf(false)
 		if err != nil {
-			panic(err)
+			return config.NewError("failed to read configuration", err)
+		}
+		userOps, err := utils.GetUserOps(cmd)
+		if err != nil {
+			return config.NewError("failed to get user operations", err)
+		}
+		hashes, err := utils.GetHashes(cmd)
+		if err != nil {
+			return config.NewError("failed to get hashes", err)
+		}
+		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
+		if err != nil {
+			return config.NewError("failed to get chain monikers", err)
 		}
 
-		fmt.Println("nonce: ", nonce)
-		unsignedUserOp := utils.UpdateUserOp(userOp, nonce)
-		fmt.Println("unsignedUserOp: ", unsignedUserOp.String())
-		chainID, err := ethClient.EthClient.ChainID(context.Background())
+		processor, err := NewUserOpProcessor(userOps, nodes, bundlerURL, entrypointAddr, eoaSigner, hashes, chainMonikers)
 		if err != nil {
-			panic(err)
+			return config.NewError("failed to create user operation processor", err)
 		}
 
-		fmt.Printf("\nchain-id:%s\n", chainID)
-		fmt.Printf("userOp:%s\n\n", unsignedUserOp.GetUserOpHash(entrypointAddr, chainID).String())
-
-		calldata, err := abi.PrepareHandleOpCalldata([]model.UserOperation{*unsignedUserOp}, eoaSigner.Address)
-		if err != nil {
-			panic(errors.Wrap(err, "error preparing userOp calldata"))
+		if err := processor.ProcessUserOps(userOps, Offline); err != nil {
+			return config.NewError("failed to process user operations", err)
 		}
 
-		fmt.Printf("Entrypoint handleOps calldata: \n%s\n\n", calldata)
-
-		// Sign the user operation and prepare it for sending.
-		signUserOp(chainID, entrypointAddr, eoaSigner, userOp)
-		// Print signature
-		utils.PrintSignature(userOp)
+		return nil
 	},
-}
-
-// signUserOp signs a user operation using the provided parameters and
-// prepares it for sending. It utilizes the userop package for signing.
-func signUserOp(chainID *big.Int, entryPointAddr common.Address, signer *signer.EOA, signedUserOp *model.UserOperation) {
-	signedOps, err := userop.Sign(chainID, entryPointAddr, signer, signedUserOp)
-	if err != nil {
-		panic(err)
-	}
-
-	fmt.Printf("signed userOp:\n%s\n", signedOps)
-
-	// Marshal signedOps into JSON
-	jsonBytes, err := json.Marshal(signedOps)
-	if err != nil {
-		panic(fmt.Errorf("error marshaling signed operations to JSON: %v", err))
-	}
-
-	// Print JSON string
-	fmt.Println("signed UserOps in JSON:", string(jsonBytes))
 }

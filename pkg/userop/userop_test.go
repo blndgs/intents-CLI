@@ -6,16 +6,17 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
+	"strings"
 	"testing"
 
-	"github.com/blndgs/intents-sdk/utils"
+	"github.com/blndgs/intents-cli/utils"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 	"github.com/stretchr/testify/require"
 
-	"github.com/blndgs/intents-sdk/pkg/userop"
+	"github.com/blndgs/intents-cli/pkg/userop"
 )
 
 // TestMatchSoliditySignature tests signing of classic and Intent UserOperations.
@@ -68,12 +69,20 @@ func TestMatchSoliditySignature(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &tc.userOp)
+			hash := tc.userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)
+			hashes := []common.Hash{hash}
+			userOps := []*model.UserOperation{&tc.userOp}
+			err := userop.SignUserOperations(tc.signer, hashes, userOps)
 			require.NoError(t, err)
-			isValid := userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp)
+			isValid, err := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+			require.NoError(t, err, "error verifying signature for %s", tc.userOp)
 			require.True(t, isValid, "signature is invalid for %s", tc.userOp)
-			actualSig := fmt.Sprintf("%x", signedOp.Signature)
+			actualSig := fmt.Sprintf("%x", tc.userOp.Signature)
 			require.Equal(t, tc.expectedSignature, actualSig)
+			genSig, err := userop.GenerateSignature(hash, tc.signer.PrivateKey)
+			genSigSigned := fmt.Sprintf("%x", genSig)
+			require.NoError(t, err)
+			require.Equal(t, tc.expectedSignature, genSigSigned)
 		})
 	}
 }
@@ -136,19 +145,34 @@ func TestSignConventionalUserOps(t *testing.T) {
 			err := json.Unmarshal([]byte(tc.userOp), &userOp)
 			require.NoError(t, err)
 
-			signedOp, err := userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			hash := userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)
+			hashes := []common.Hash{hash}
+			userOps := []*model.UserOperation{&userOp}
+			err = userop.SignUserOperations(tc.signer, hashes, userOps)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				require.True(t, userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, signedOp), "signature is invalid for %s", tc.userOp)
+				valid, err := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+				require.NoError(t, err, "error verifying signature for %s", tc.userOp)
+				require.True(t, valid, "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}
 }
 
-func TestIntentUserOpSign(t *testing.T) {
+// Helper function to process callData
+func processCallData(callData string) (string, error) {
+	if callData == "" || callData == "{}" || callData == "0x" {
+		return callData, nil
+	}
+	if !utils.IsValidHex(callData) {
+		return utils.ConvJSONNum2ProtoValues(callData)
+	}
+	return callData, nil
+}
 
+func TestIntentUserOpSign(t *testing.T) {
 	testCases := []struct {
 		name           string
 		chainID        *big.Int
@@ -163,18 +187,18 @@ func TestIntentUserOpSign(t *testing.T) {
 			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
 			signer:         validPrivateKey(),
 			userOp: `{
-			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
-			  "nonce":"0xf",
-			  "initCode":"0x",
-			  "callData":"{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}",
-			  "callGasLimit":"0xc3500",
-			  "verificationGasLimit":"0x996a0",
-			  "preVerificationGas":"0x99000",
-			  "maxFeePerGas":"0x0",
-			  "maxPriorityFeePerGas":"0x0",
-			  "paymasterAndData":"0x",
-			  "signature":"0x"
-			}`,
+              "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+              "nonce":"0xf",
+              "initCode":"0x",
+              "callData":"{\"fromAsset\":{\"address\":\"0x6b175474e89094c44da98b954eedeac495271d0f\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}},\"toAsset\":{\"address\":\"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\",\"amount\":{\"value\":\"1000000\"},\"chainId\":{\"value\":\"1\"}}}",
+              "callGasLimit":"0xc3500",
+              "verificationGasLimit":"0x996a0",
+              "preVerificationGas":"0x99000",
+              "maxFeePerGas":"0x0",
+              "maxPriorityFeePerGas":"0x0",
+              "paymasterAndData":"0x",
+              "signature":"0x"
+            }`,
 			wantErr: false,
 		},
 		{
@@ -183,42 +207,56 @@ func TestIntentUserOpSign(t *testing.T) {
 			entryPointAddr: common.HexToAddress("0x5FF137D4b0FDCD49DcA30c7CF57E578a026d2789"),
 			signer:         validPrivateKey(),
 			userOp: `{
-			  "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
-			  "nonce":"0xf",
-			  "initCode":"0x",
-			  "callData":"{\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}}}",
-			  "callGasLimit":"0xc3500",
-			  "verificationGasLimit":"0x996a0",
-			  "preVerificationGas":"0x99000",
-			  "maxFeePerGas":"0x0",
-			  "maxPriorityFeePerGas":"0x0",
-			  "paymasterAndData":"0x",
-			  "signature":"0x"
-			}`,
+              "sender":"0xff6f893437e88040ffb70ce6aeff4ccbf8dc19a4",
+              "nonce":"0xf",
+              "initCode":"0x",
+              "callData":"{\"fromAsset\":{\"address\":\"0xdAC17F958D2ee523a2206206994597C13D831ec7\"},\"toAsset\":{\"address\":\"0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48\",\"amount\":{\"value\":\"1000000000000000000\"},\"chainId\":{\"value\":\"1\"}}}",
+              "callGasLimit":"0xc3500",
+              "verificationGasLimit":"0x996a0",
+              "preVerificationGas":"0x99000",
+              "maxFeePerGas":"0x0",
+              "maxPriorityFeePerGas":"0x0",
+              "paymasterAndData":"0x",
+              "signature":"0x"
+            }`,
 			wantErr: false,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			callDataEncoded, err := utils.ProcessCallDataUsingBigInt(tc.userOp)
-			if err != nil {
-				panic(fmt.Errorf("error encoding callData: %v", err))
+			// Parse the userOp JSON string into a map
+			var userOpMap map[string]interface{}
+			dec := json.NewDecoder(strings.NewReader(tc.userOp))
+			dec.UseNumber()
+			err := dec.Decode(&userOpMap)
+			require.NoError(t, err, "error parsing user operation JSON")
+
+			// Process the callData field using the helper function
+			if callData, ok := userOpMap["callData"].(string); ok {
+				modifiedCallData, err := processCallData(callData)
+				require.NoError(t, err, "error processing callData")
+				userOpMap["callData"] = modifiedCallData
 			}
 
+			// Marshal the modified userOpMap back to JSON
+			modifiedUserOpJSON, err := json.Marshal(userOpMap)
+			require.NoError(t, err, "error marshaling modified user operation JSON")
+
+			// Unmarshal into userOp struct
 			var userOp model.UserOperation
-			err = json.Unmarshal([]byte(callDataEncoded), &userOp)
-			if err != nil {
-				panic(err)
-			}
-			_, err = userop.Sign(tc.chainID, tc.entryPointAddr, tc.signer, &userOp)
+			err = json.Unmarshal(modifiedUserOpJSON, &userOp)
+			require.NoError(t, err)
+			hashes := []common.Hash{userOp.GetUserOpHash(tc.entryPointAddr, tc.chainID)}
+			userOps := []*model.UserOperation{&userOp}
+			err = userop.SignUserOperations(tc.signer, hashes, userOps)
 			if tc.wantErr {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
-				if !userop.VerifySignature(tc.chainID, tc.signer.PublicKey, tc.entryPointAddr, &userOp) {
-					t.Errorf("signature is invalid for %s", tc.userOp)
-				}
+				valid, err := userop.VerifySignature(tc.signer.PublicKey, userOps, hashes)
+				require.NoError(t, err, "error verifying signature for %s", tc.userOp)
+				require.True(t, valid, "signature is invalid for %s", tc.userOp)
 			}
 		})
 	}

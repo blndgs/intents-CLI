@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/blndgs/intents-sdk/cmd"
+	"github.com/blndgs/intents-cli/cmd"
 	"github.com/spf13/cobra"
 )
 
@@ -20,10 +20,13 @@ func main() {
 	log.SetOutput(os.Stdout)
 
 	// Add commands to the root command
+	rootCmd.AddCommand(cmd.HashUserOpCmd)
 	rootCmd.AddCommand(cmd.SendAndSignUserOpCmd)
 	rootCmd.AddCommand(cmd.SendUserOpCmd)
 	rootCmd.AddCommand(cmd.SignUserOpCmd)
 	rootCmd.AddCommand(cmd.OnChainUserOpCmd)
+	rootCmd.AddCommand(cmd.RecoverSignerCmd)
+	rootCmd.AddCommand(cmd.ExtractUserOpCmd)
 	// Execute the root command
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

@@ -1,12 +1,16 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"math/big"
+	"strings"
 
+	"github.com/blndgs/intents-cli/pkg/ethclient"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/crypto"
+	"github.com/ethereum/go-ethereum/rpc"
 	"github.com/spf13/viper"
 	"github.com/stackup-wallet/stackup-bundler/pkg/signer"
 )
@@ -17,11 +21,25 @@ type GasParams struct {
 	GasPrice *big.Int
 }
 
+type ChainNode struct {
+	Node      *ethclient.Client
+	RPCClient *rpc.Client
+	ChainID   *big.Int
+	URLStr    string
+}
+
+type NodesMap map[string]ChainNode // moniker -> chainID -> node
+
+const ethNodeUrlPrefix = "eth_node_url_"
+
+// DefaultRPCURLKey Any RPC URL with 'default' in each key is considered as
+// the default RPC URL, e.g. ETH_NODE_URL_BSC DEFAULT
+const DefaultRPCURLKey = "default"
+
 // ReadConf reads configuration from a .env file and initializes
-// necessary variables like node URL, signer, bundler URL, and entry point address.
+// necessary variables like node URLs, signer, bundler URL, and entry point address.
 // It returns these values and logs configuration details.
-func ReadConf() (string, string, common.Address, *signer.EOA) {
-	const nodeUrl = "ETH_NODE_URL"
+func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA, error) {
 	const signerPrvKey = "SIGNER_PRIVATE_KEY"
 	const bundlerUrl = "BUNDLER_URL"
 	const epAddr = "ENTRYPOINT_ADDR"
@@ -30,22 +48,76 @@ func ReadConf() (string, string, common.Address, *signer.EOA) {
 	viper.SetConfigType("env")
 	viper.AddConfigPath(".")
 	if err := viper.ReadInConfig(); err != nil {
-		panic(fmt.Errorf("fatal error config file: %w", err))
+		return nil, "", common.Address{}, nil, NewError("fatal error config file", err)
 	}
 
-	nodeURL := viper.GetString(nodeUrl)
+	foundDefaultRPCURL := false
+	nodeURLs := make(NodesMap)
+	for _, key := range viper.AllKeys() {
+		// viper.AllKeys() returns all keys in lowercase
+		if strings.HasPrefix(key, ethNodeUrlPrefix) {
+			if strings.Contains(key, DefaultRPCURLKey) {
+				if foundDefaultRPCURL {
+					return nil, "", common.Address{}, nil,
+						NewError("multiple default RPC URLs found: Add only one environment variable with 'default' in the key, e.g. ETH_NODE_URL_DEFAULT", nil)
+				}
+				foundDefaultRPCURL = true
+				// save the default RPC URL with 'default' as the key
+				var err error
+				nodeURLs[DefaultRPCURLKey], err = initNode(key)
+				if err != nil {
+					return nil, "", common.Address{}, nil, NewError("failed to initialize default node", err)
+				}
+				continue
+			}
+			moniker := strings.TrimPrefix(key, ethNodeUrlPrefix)
+			var err error
+			nodeURLs[moniker], err = initNode(key)
+			if err != nil {
+				return nil, "", common.Address{}, nil, NewError("failed to initialize node", err)
+			}
+		}
+	}
+
+	if !foundDefaultRPCURL {
+		return nil, "", common.Address{}, nil,
+			NewError(
+				"no default RPC URL found: Add an environment variable with 'default' in the key, e.g. ETH_NODE_URL_DEFAULT", nil)
+	}
+
 	prvKeyHex := viper.GetString(signerPrvKey)
 	s, err := signer.New(prvKeyHex)
 	if err != nil {
-		panic(fmt.Errorf("fatal signer error: %w", err))
+		return nil, "", common.Address{}, nil, NewError("fatal signer error", err)
 	}
 	bundlerURL := viper.GetString(bundlerUrl)
-
 	entryPointAddr := common.HexToAddress(viper.GetString(epAddr))
 
-	fmt.Printf("Signer private key: %s\n", hexutil.Encode(crypto.FromECDSA(s.PrivateKey)))
-	fmt.Printf("Public key: %s\n", hexutil.Encode(crypto.FromECDSAPub(s.PublicKey))[4:])
-	fmt.Printf("Address: %s\n", s.Address)
-	fmt.Printf("Entrypoint Address: %s\n", entryPointAddr)
-	return nodeURL, bundlerURL, entryPointAddr, s
+	if !quiet {
+		fmt.Printf("Signer private key: %s\n", hexutil.Encode(crypto.FromECDSA(s.PrivateKey)))
+		fmt.Printf("Public key: %s\n", hexutil.Encode(crypto.FromECDSAPub(s.PublicKey))[4:])
+		fmt.Printf("Address: %s\n", s.Address)
+		fmt.Printf("Entrypoint Address: %s\n", entryPointAddr)
+		for moniker := range nodeURLs {
+			fmt.Printf("Node moniker: %s url: %s\n", moniker, nodeURLs[moniker].URLStr)
+		}
+	}
+
+	return nodeURLs, bundlerURL, entryPointAddr, s, nil
+}
+
+func initNode(key string) (ChainNode, error) {
+	urlString := viper.GetString(key)
+	node := ethclient.NewClient(urlString)
+	chainID, err := node.EthClient.ChainID(context.Background())
+	if err != nil {
+		return ChainNode{}, NewError("failed getting chain ID", err)
+	}
+
+	rpcClient, err := rpc.Dial(urlString)
+	if err != nil {
+		return ChainNode{}, NewError("failed dialing the RPC client", err)
+	}
+
+	return ChainNode{URLStr: urlString, RPCClient: rpcClient, Node: node, ChainID: chainID}, nil
 }

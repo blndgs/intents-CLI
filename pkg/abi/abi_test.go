@@ -5,7 +5,7 @@ import (
 	"math/big"
 	"testing"
 
-	"github.com/blndgs/intents-sdk/pkg/abi"
+	"github.com/blndgs/intents-cli/pkg/abi"
 	"github.com/blndgs/model"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/stretchr/testify/require"
@@ -31,7 +31,7 @@ func TestPrepareHandleOpCalldata(t *testing.T) {
 	}
 	beneficiary := common.HexToAddress("0xabcdefabcdefabcdefabcdefabcdefabcdefabcd")
 	// Call the function
-	calldata, err := abi.PrepareHandleOpCalldata(ops, beneficiary)
+	calldata, err := abi.PrepareHandleOpCalldata(ops[0], beneficiary)
 	// Assertions
 	require.NoError(t, err)
 	require.NotEmpty(t, calldata)
