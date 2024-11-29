@@ -161,8 +161,18 @@ func TestSignConventionalUserOps(t *testing.T) {
 	}
 }
 
-func TestIntentUserOpSign(t *testing.T) {
+// Helper function to process callData
+func processCallData(callData string) (string, error) {
+	if callData == "" || callData == "{}" || callData == "0x" {
+		return callData, nil
+	}
+	if !utils.IsValidHex(callData) {
+		return utils.ConvJSONNum2ProtoValues(callData)
+	}
+	return callData, nil
+}
 
+func TestIntentUserOpSign(t *testing.T) {
 	testCases := []struct {
 		name           string
 		chainID        *big.Int
@@ -224,16 +234,11 @@ func TestIntentUserOpSign(t *testing.T) {
 				t.Errorf("error parsing user operation JSON: %v", err)
 			}
 
-			// Process the callData field
-			if callData, ok := userOpMap["callData"].(string); ok && callData != "" && callData != "{}" && callData != "0x" {
-				if !utils.IsValidHex(callData) {
-					// Process callData using ConvJSONNum2ProtoValues
-					modifiedCallData, err := utils.ConvJSONNum2ProtoValues(callData)
-					if err != nil {
-						t.Errorf("error processing callData: %v", err)
-					}
-					userOpMap["callData"] = modifiedCallData
-				}
+			// Process the callData field using the helper function
+			if callData, ok := userOpMap["callData"].(string); ok {
+				modifiedCallData, err := processCallData(callData)
+				require.NoError(t, err, "error processing callData")
+				userOpMap["callData"] = modifiedCallData
 			}
 
 			// Marshal the modified userOpMap back to JSON
