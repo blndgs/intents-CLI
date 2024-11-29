@@ -59,6 +59,10 @@ var stateColors = map[State]string{
 
 // DetermineState analyzes a UserOperation to determine its current state
 func DetermineState(op *model.UserOperation) State {
+	if op == nil {
+		return StateUnsigned
+	}
+
 	// Check signature validity first
 	if !op.HasSignature() {
 		return StateUnsigned

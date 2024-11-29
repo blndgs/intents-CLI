@@ -230,9 +230,7 @@ func TestIntentUserOpSign(t *testing.T) {
 			dec := json.NewDecoder(strings.NewReader(tc.userOp))
 			dec.UseNumber()
 			err := dec.Decode(&userOpMap)
-			if err != nil {
-				t.Errorf("error parsing user operation JSON: %v", err)
-			}
+			require.NoError(t, err, "error parsing user operation JSON")
 
 			// Process the callData field using the helper function
 			if callData, ok := userOpMap["callData"].(string); ok {
@@ -243,9 +241,7 @@ func TestIntentUserOpSign(t *testing.T) {
 
 			// Marshal the modified userOpMap back to JSON
 			modifiedUserOpJSON, err := json.Marshal(userOpMap)
-			if err != nil {
-				t.Errorf("error marshaling modified user operation JSON: %v", err)
-			}
+			require.NoError(t, err, "error marshaling modified user operation JSON")
 
 			// Unmarshal into userOp struct
 			var userOp model.UserOperation

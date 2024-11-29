@@ -45,7 +45,7 @@ var RecoverSignerCmd = &cobra.Command{
 
 		chainMonikers, err := utils.GetChainMonikers(cmd, nodes, len(userOps))
 		if len(chainMonikers) > 2 || err != nil {
-			return config.NewError("Only a single chain is supported", err)
+			return config.NewError("Only 1 additional chain is supported besides the default", err)
 		}
 
 		var chainID *big.Int

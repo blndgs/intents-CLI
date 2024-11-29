@@ -182,9 +182,14 @@ func IsNumericString(s string) bool {
 
 // processCallDataFields processes the 'callData' field to ensure it is correctly formatted
 func processCallDataFields(v interface{}) error {
+	const maxCallDataSize = 128 * 1024 // 128KB limit
 	if vv, ok := v.(map[string]interface{}); ok {
 		for key, val := range vv {
 			if key == "callData" {
+				// Check size limits
+				if jsonStr, ok := val.(string); ok && len(jsonStr) > maxCallDataSize {
+					return config.NewError("callData exceeds size limit", nil)
+				}
 				switch callDataVal := val.(type) {
 				case string:
 					if err := processCallDataString(vv, key, callDataVal); err != nil {
