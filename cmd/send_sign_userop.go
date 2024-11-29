@@ -41,7 +41,7 @@ var SendAndSignUserOpCmd = &cobra.Command{
 			return config.NewError("failed to create user operation processor", err)
 		}
 
-		if err := processor.ProcessUserOps(userOps, BunderSignSubmit); err != nil {
+		if err := processor.ProcessUserOps(userOps, BundlerSignSubmit); err != nil {
 			return config.NewError("failed to process user operations", err)
 		}
 

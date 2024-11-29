@@ -24,8 +24,8 @@ const (
 	Offline SubmissionType = iota
 	// BundlerSubmit sends the UserOperation to an EIP-4337 bundler
 	BundlerSubmit
-	// BunderSignSubmit signs and sends the UserOperation to an EIP-4337 bundler
-	BunderSignSubmit
+	// BundlerSignSubmit signs and sends the UserOperation to an EIP-4337 bundler
+	BundlerSignSubmit
 	// DirectSubmit bypasses the bundler and sends directly to an Ethereum node
 	DirectSubmit
 )
