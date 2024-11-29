@@ -35,7 +35,10 @@ var OnChainUserOpCmd = &cobra.Command{
 	Short: "Submit a signed userOp on-chain bypassing the bundler",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		// Read configuration and initialize necessary components.
-		nodes, bundlerURL, entrypointAddr, eoaSigner, _ := config.ReadConf(false)
+		nodes, bundlerURL, entrypointAddr, eoaSigner, err := config.ReadConf(false)
+		if err != nil {
+			return config.NewError("failed to read configuration", err)
+		}
 		userOps, err := utils.GetUserOps(cmd)
 		if err != nil {
 			return config.NewError("failed to get user operations", err)

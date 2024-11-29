@@ -25,7 +25,10 @@ var RecoverSignerCmd = &cobra.Command{
 	Use:   "recover",
 	Short: "Recover the userOp signature's signer. Signatures with appended xData are supported. with 1 or more hashes and a signature",
 	RunE: func(cmd *cobra.Command, args []string) error {
-		nodes, _, entrypointAddr, eoaSigner, _ := config.ReadConf(true)
+		nodes, _, entrypointAddr, eoaSigner, err := config.ReadConf(true)
+		if err != nil {
+			return config.NewError("failed to read configuration", err)
+		}
 
 		providedHashes, err := utils.GetHashes(cmd)
 		if err != nil {

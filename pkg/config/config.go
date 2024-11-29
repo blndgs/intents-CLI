@@ -63,11 +63,19 @@ func ReadConf(quiet bool) (NodesMap, string, common.Address, *signer.EOA, error)
 				}
 				foundDefaultRPCURL = true
 				// save the default RPC URL with 'default' as the key
-				nodeURLs[DefaultRPCURLKey], _ = initNode(key)
+				var err error
+				nodeURLs[DefaultRPCURLKey], err = initNode(key)
+				if err != nil {
+					return nil, "", common.Address{}, nil, NewError("failed to initialize default node", err)
+				}
 				continue
 			}
 			moniker := strings.TrimPrefix(key, ethNodeUrlPrefix)
-			nodeURLs[moniker], _ = initNode(key)
+			var err error
+			nodeURLs[moniker], err = initNode(key)
+			if err != nil {
+				return nil, "", common.Address{}, nil, NewError("failed to initialize node", err)
+			}
 		}
 	}
 
