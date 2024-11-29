@@ -184,8 +184,12 @@ func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submiss
 
 func (p *UserOpProcessor) Set4337Nonce(op *model.UserOperation, chainMoniker string) error {
 	sender := op.Sender
+	nodeConfig, ok := p.Nodes[chainMoniker]
+	if !ok {
+		return config.NewError(fmt.Sprintf("chainMoniker %s not found in Nodes map", chainMoniker), nil)
+	}
 	var err error
-	aaNonce, err := ethclient.Get4337Nonce(p.Nodes[chainMoniker].Node.RPCClient, sender)
+	aaNonce, err := ethclient.Get4337Nonce(nodeConfig.Node.RPCClient, sender)
 	if err != nil {
 		return fmt.Errorf("error getting nonce for sender %s on chain %s: %w", sender, chainMoniker, err)
 	}
