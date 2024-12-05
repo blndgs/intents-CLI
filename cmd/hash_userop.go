@@ -50,7 +50,7 @@ var HashUserOpCmd = &cobra.Command{
 			return config.NewError("failed to create user operation processor", err)
 		}
 
-		if err := p.setOpHashes(userOps, Offline); err != nil {
+		if err := p.setXOpHashes(userOps, Offline); err != nil {
 			return config.NewError("failed to set operation hashes", err)
 		}
 

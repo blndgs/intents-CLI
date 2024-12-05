@@ -67,7 +67,7 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 	}, nil
 }
 
-func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) error {
+func (p *UserOpProcessor) setXOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) error {
 	for i, op := range userOps {
 		var hash common.Hash
 		if len(p.ProvidedHashes) > i && p.ProvidedHashes[i] != (common.Hash{}) {
@@ -120,7 +120,7 @@ func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submission
 }
 
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
-	if err := p.setOpHashes(userOps, submissionAction); err != nil {
+	if err := p.setXOpHashes(userOps, submissionAction); err != nil {
 		return config.NewError("error setting UserOperation hashes", err)
 	}
 	println()
