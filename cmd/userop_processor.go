@@ -52,6 +52,10 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 	chainIDs := make([]*big.Int, len(userOps))
 	for opIdx := range userOps {
 		chainMoniker := chainMonikers[opIdx]
+		if len(userOps) == 1 && len(chainMonikers) == 2 {
+			// user specified a different chainMoniker for the UserOperation
+			chainMoniker = chainMonikers[1]
+		}
 		chainIDs[opIdx] = nodes[chainMoniker].ChainID
 	}
 
@@ -79,7 +83,11 @@ func (p *UserOpProcessor) setXOpHashes(userOps []*model.UserOperation, submissio
 			hash = p.ProvidedHashes[i]
 			fmt.Printf("Provided UserOp hash: %s for ChainID: %s\n", hash, p.ChainIDs[i])
 		} else if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
-			if err := p.Set4337Nonce(op, p.ChainMonikers[i]); err != nil {
+			chainMoniker := p.ChainMonikers[i]
+			if len(userOps) == 1 && len(p.ChainMonikers) == 2 {
+				chainMoniker = p.ChainMonikers[1]
+			}
+			if err := p.Set4337Nonce(op, chainMoniker); err != nil {
 				return config.NewError("failed setting EIP-4337 nonce", err)
 			}
 		} else if op.IsCrossChainOperation() && len(userOps) == 1 && ((submissionAction == BundlerSubmit && userop.IsAggregate(op)) || submissionAction == DirectSubmit) {
