@@ -52,6 +52,10 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 	chainIDs := make([]*big.Int, len(userOps))
 	for opIdx := range userOps {
 		chainMoniker := chainMonikers[opIdx]
+		if len(userOps) == 1 && len(chainMonikers) == 2 {
+			// user specified a different chainMoniker for the UserOperation
+			chainMoniker = chainMonikers[1]
+		}
 		chainIDs[opIdx] = nodes[chainMoniker].ChainID
 	}
 
@@ -67,49 +71,106 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 	}, nil
 }
 
-func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) error {
-	for i, op := range userOps {
-		var hash common.Hash
-		if len(p.ProvidedHashes) > i && p.ProvidedHashes[i] != (common.Hash{}) {
-			hash = p.ProvidedHashes[i]
-			fmt.Printf("Provided UserOp hash: %s for ChainID: %s\n", hash, p.ChainIDs[i])
-		} else if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
-			if err := p.Set4337Nonce(op, p.ChainMonikers[i]); err != nil {
-				return config.NewError("failed setting EIP-4337 nonce", err)
-			}
-		} else if op.IsCrossChainOperation() && len(userOps) == 1 && ((submissionAction == BundlerSubmit && userop.IsAggregate(op)) || submissionAction == DirectSubmit) {
-			var xData *model.CrossChainData
-			var err error
-			if userop.HasXDataInCallData(op) {
-				xData, err = model.ParseCrossChainData(op.CallData)
-				if err != nil {
-					return config.NewError("failed parsing cross-chain data from callData", err)
-				}
-			} else if userop.HasXDataInSignature(op) {
-				xData, err = model.ParseCrossChainData(op.Signature[op.GetSignatureEndIdx():])
-				if err != nil {
-					return config.NewError("failed parsing cross-chain data from signature", err)
-				}
-			} else {
-				return config.NewError("no cross-chain xData found in cross-chain UserOp's callData or signature", nil)
-			}
+// getProvidedHash returns the provided hash for the UserOperation at index i, if any.
+func (p *UserOpProcessor) getProvidedHash(i int) common.Hash {
+	if len(p.ProvidedHashes) > i && p.ProvidedHashes[i] != (common.Hash{}) {
+		return p.ProvidedHashes[i]
+	}
+	return common.Hash{}
+}
 
-			hashes := make([]common.Hash, len(xData.HashList))
-			for i, h := range xData.HashList {
-				if h.IsPlaceholder {
-					hashes[i] = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[0])
-				} else {
-					hashes[i] = common.Hash(h.OperationHash)
-				}
-			}
+// set4337NonceForOp sets the EIP-4337 nonce for the UserOperation by determining the correct chainMoniker
+// and calling Set4337Nonce.
+func (p *UserOpProcessor) set4337NonceForOp(op *model.UserOperation, i int, userOps []*model.UserOperation) error {
+	chainMoniker := p.ChainMonikers[i]
+	if len(userOps) == 1 && len(p.ChainMonikers) == 2 {
+		chainMoniker = p.ChainMonikers[1]
+	}
+	if err := p.Set4337Nonce(op, chainMoniker); err != nil {
+		return config.NewError("failed setting EIP-4337 nonce", err)
+	}
+	return nil
+}
 
-			hash = userop.GenXHash(hashes)
-			fmt.Printf("Generated XChain UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
+// toSubmitOnChain checks if the UserOperation should be submitted on-chain.
+// Only one UserOperation is ever submitted on-chain.
+func (p *UserOpProcessor) toSubmitOnChain(userOps []*model.UserOperation, submissionAction SubmissionType, op *model.UserOperation) bool {
+	return len(userOps) == 1 && ((submissionAction == BundlerSubmit && userop.IsAggregate(op)) || submissionAction == DirectSubmit)
+}
+
+// parseCrossChainData attempts to parse cross-chain data from either the callData or the signature.
+func (p *UserOpProcessor) parseCrossChainData(op *model.UserOperation) (*model.CrossChainData, error) {
+	if userop.HasXDataInCallData(op) {
+		return model.ParseCrossChainData(op.CallData)
+	} else if userop.HasXDataInSignature(op) {
+		return model.ParseCrossChainData(op.Signature[op.GetSignatureEndIdx():])
+	}
+	return nil, config.NewError("no cross-chain xData found in cross-chain UserOp's callData or signature", nil)
+}
+
+// generateCrossChainHash parses the cross-chain data (from callData or signature) and generates a hash
+// from the operation hashes.
+func (p *UserOpProcessor) generateCrossChainHash(op *model.UserOperation) (common.Hash, error) {
+	xData, err := p.parseCrossChainData(op)
+	if err != nil {
+		return common.Hash{}, err
+	}
+
+	hashes := make([]common.Hash, len(xData.HashList))
+	for i, h := range xData.HashList {
+		if h.IsPlaceholder {
+			hashes[i] = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[0])
+		} else {
+			hashes[i] = common.Hash(h.OperationHash)
 		}
+	}
+	return userop.GenXHash(hashes), nil
+}
 
-		if hash == (common.Hash{}) {
-			hash = op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i])
-			fmt.Printf("Generated UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
+// determineUserOpHash decides which strategy to use for computing the UserOperation hash:
+// 1. Use provided hashes if available.
+// 2. If not a bundler/ direct submit and not cross-chain, set the EIP-4337 nonce and compute the hash.
+// 3. If a cross-chain operation under bundler/direct conditions, compute a cross-chain hash.
+// 4. Otherwise, compute the default hash.
+func (p *UserOpProcessor) determineUserOpHash(op *model.UserOperation, i int, userOps []*model.UserOperation, submissionAction SubmissionType) (common.Hash, error) {
+	// Use provided hash if available
+	if hash := p.getProvidedHash(i); hash != (common.Hash{}) {
+		fmt.Printf("Provided UserOp hash: %s for ChainID: %s\n", hash, p.ChainIDs[i])
+		return hash, nil
+	}
+
+	// If not direct or bundler submit, set the EIP-4337 nonce
+	if submissionAction != BundlerSubmit && submissionAction != DirectSubmit {
+		if err := p.set4337NonceForOp(op, i, userOps); err != nil {
+			return common.Hash{}, err
+		}
+		// After setting nonce, compute the default hash
+		return op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i]), nil
+	}
+
+	// If cross-chain operation to submit on-chain, computes cross-chain hash
+	if op.IsCrossChainOperation() && p.toSubmitOnChain(userOps, submissionAction, op) {
+		hash, err := p.generateCrossChainHash(op)
+		if err != nil {
+			return common.Hash{}, err
+		}
+		fmt.Printf("Generated XChain UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
+		return hash, nil
+	}
+
+	// Otherwise, just compute the default hash
+	hash := op.GetUserOpHash(p.EntrypointAddr, p.ChainIDs[i])
+	fmt.Printf("Generated UserOp hash: %s for ChainID: %s, moniker: %s\n", hash, p.ChainIDs[i], p.ChainMonikers[i])
+	return hash, nil
+}
+
+// setXOpHashes sets and caches the hash values for the given UserOperations.
+// It delegates hash retrieval to helper functions that handle distinct logical branches.
+func (p *UserOpProcessor) setXOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) error {
+	for i, op := range userOps {
+		hash, err := p.determineUserOpHash(op, i, userOps, submissionAction)
+		if err != nil {
+			return err
 		}
 
 		if len(p.CachedHashes) <= i || p.CachedHashes[i] != hash {
@@ -119,8 +180,11 @@ func (p *UserOpProcessor) setOpHashes(userOps []*model.UserOperation, submission
 	return nil
 }
 
+// ProcessUserOps processes the UserOperations by setting the UserOperation hashes,
+// signing the UserOperations, and submitting the UserOperations to the bundler or
+// directly to the Ethereum node.
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
-	if err := p.setOpHashes(userOps, submissionAction); err != nil {
+	if err := p.setXOpHashes(userOps, submissionAction); err != nil {
 		return config.NewError("error setting UserOperation hashes", err)
 	}
 	println()
