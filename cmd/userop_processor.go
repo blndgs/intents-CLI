@@ -67,6 +67,11 @@ func NewUserOpProcessor(userOps []*model.UserOperation, nodes config.NodesMap, b
 	}, nil
 }
 
+// setXOpHashes sets the hash values for the UserOperations. If the hashes are provided, they are used.
+// If the submissionAction is online, the EIP-4337 nonce is set for the UserOperation.
+// If the UserOperation is a cross-chain operation, the hash is generated from the provided hashes.
+// If the UserOperation is a cross-chain operation and the submissionAction is BundlerSubmit or DirectSubmit,
+// the cross-chain data is parsed from the callData or signature and the hash is generated from the operation hashes.
 func (p *UserOpProcessor) setXOpHashes(userOps []*model.UserOperation, submissionAction SubmissionType) error {
 	for i, op := range userOps {
 		var hash common.Hash
@@ -119,6 +124,9 @@ func (p *UserOpProcessor) setXOpHashes(userOps []*model.UserOperation, submissio
 	return nil
 }
 
+// ProcessUserOps processes the UserOperations by setting the UserOperation hashes,
+// signing the UserOperations, and submitting the UserOperations to the bundler or
+// directly to the Ethereum node.
 func (p *UserOpProcessor) ProcessUserOps(userOps []*model.UserOperation, submissionAction SubmissionType) error {
 	if err := p.setXOpHashes(userOps, submissionAction); err != nil {
 		return config.NewError("error setting UserOperation hashes", err)
